@@ -13,6 +13,8 @@ public interface GameContract {
         void showResult(String winnerName, boolean isWinner);
         void repaintGame();
         void startGameDisplay();
+        // NEW
+        void showNotification(String text);
     }
 
     interface Presenter {

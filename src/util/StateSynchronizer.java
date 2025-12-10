@@ -4,6 +4,7 @@ import model.GameState;
 import model.entities.Enemy;
 import model.entities.GameCharacter;
 import model.entities.Projectile;
+import presenter.GamePresenter;
 
 public class StateSynchronizer {
 
@@ -12,6 +13,7 @@ public class StateSynchronizer {
     private GameState gameState;
     private final NetworkManager net = NetworkManager.getInstance();
     private Runnable onGameStartCallback;
+    private GamePresenter presenter;
 
     private StateSynchronizer() {}
 
@@ -20,12 +22,33 @@ public class StateSynchronizer {
         return instance;
     }
 
+    public void setPresenter(GamePresenter presenter) {
+        this.presenter = presenter;
+    }
+
     public void setGameState(GameState gameState) {
         synchronized (lock) { this.gameState = gameState; }
     }
 
     public void setOnGameStartCallback(Runnable callback) {
         this.onGameStartCallback = callback;
+    }
+
+    // --- PAUSE & RESUME ---
+    public void syncPause() {
+        net.sendMessage(Constants.MSG_PAUSE, "STOP");
+    }
+
+    public void handleRemotePause() {
+        if (presenter != null) presenter.pauseGame(true);
+    }
+
+    public void syncResume() {
+        net.sendMessage(Constants.MSG_RESUME, "GO");
+    }
+
+    public void handleRemoteResume() {
+        if (presenter != null) presenter.resumeGame();
     }
 
     // --- GAME FLOW ---
@@ -73,9 +96,7 @@ public class StateSynchronizer {
                 String[] parts = data.split(",");
                 int lane = Integer.parseInt(parts[0]);
                 int dmg = Integer.parseInt(parts[1]);
-
                 Enemy enemy = gameState.getEnemy();
-                // FIX: Posisi spawn Y + 40
                 Projectile p = new Projectile(
                         enemy.getX(), enemy.getY() + 40, lane,
                         Constants.PROJECTILE_SPEED, dmg, false,
@@ -98,6 +119,12 @@ public class StateSynchronizer {
                 String[] parts = data.split(",");
                 String effect = parts[1];
                 int duration = Integer.parseInt(parts[2]);
+
+                // Show notification
+                if (presenter != null) {
+                    presenter.showSkillNotification("Musuh: " + effect + " (" + duration + "s)");
+                }
+
                 applySkillEffect(gameState.getEnemy(), effect, duration);
             } catch (Exception ignored) {}
         }
@@ -121,7 +148,6 @@ public class StateSynchronizer {
         }).start();
     }
 
-    // --- DAMAGE & GAME OVER ---
     public void syncDamage(int damage) {
         net.sendMessage(Constants.MSG_DAMAGE, String.valueOf(damage));
     }

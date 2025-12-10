@@ -12,6 +12,7 @@ public class Constants {
     public static final int LANE_HEIGHT  = 80;
     public static final int SCREEN_WIDTH = 1280;
     public static final int SCREEN_HEIGHT = 720;
+    public static final int STATE_PAUSED    = 3;
 
     // Game Config
     public static final int PROJECTILE_SPEED = 14;
@@ -27,5 +28,7 @@ public class Constants {
     public static final String MSG_DAMAGE         = "DMG";
     public static final String MSG_SKILL_ACTIVATE = "SKILL";
     public static final String MSG_GAME_OVER      = "GAME_OVER";
+    public static final String MSG_PAUSE          = "PAUSE";
+    public static final String MSG_RESUME         = "RESUME";
 
 }

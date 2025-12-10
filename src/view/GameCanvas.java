@@ -14,6 +14,8 @@ import java.awt.event.KeyListener;
 public class GameCanvas extends JPanel implements KeyListener {
 
     private GamePresenter presenter;
+    private String notificationText = "";
+    private long notificationEndTime = 0;
 
     public GameCanvas(GamePresenter presenter) {
         this.presenter = presenter;
@@ -21,6 +23,12 @@ public class GameCanvas extends JPanel implements KeyListener {
         setBackground(Color.BLACK);
         setFocusable(true);
         addKeyListener(this);
+    }
+
+    public void setNotification(String text) {
+        this.notificationText = text;
+        this.notificationEndTime = System.currentTimeMillis() + 2000; // 2 detik
+        repaint();
     }
 
     @Override
@@ -42,44 +50,40 @@ public class GameCanvas extends JPanel implements KeyListener {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-
         GameState s = presenter.getGameState();
         if (s == null) return;
 
         GameCharacter p = s.getPlayer();
         GameCharacter e = s.getEnemy();
 
-        // --- GAMBAR PLAYER (KIRI, Hadap Kanan) ---
-        if (p != null) {
-            // Gambar normal
-            g.drawImage(p.getCurrentImage(), p.getX(), p.getY(), 120, 120, null);
-        }
+        if (p != null) g.drawImage(p.getCurrentImage(), p.getX(), p.getY(), 120, 120, null);
 
-        // --- GAMBAR ENEMY (KANAN, Hadap Kiri) ---
+        // FLIP ENEMY IMAGE
         if (e != null) {
-            // Logika Flip: Kita gambar dari titik X+Lebar mundur ke kiri
-            // Syntax: drawImage(img, x, y, width, height, observer)
-            // Jika width negatif, gambar akan terbalik
-            g.drawImage(e.getCurrentImage(),
-                    e.getX() + 120, e.getY(), // Posisi X digeser sejauh lebar gambar
-                    -120, 120,                // Lebar dibuat NEGATIF agar membalik
-                    null);
+            g.drawImage(e.getCurrentImage(), e.getX() + 120, e.getY(), -120, 120, null);
         }
 
-        // --- PROJECTILES ---
         for (Projectile pr : presenter.getProjectiles()) {
-            Image projImg = pr.getImage();
-            if (projImg != null) {
-                // Jika projectile dari musuh, kita flip juga agar arah apinya sesuai
-                if (!pr.isFromPlayer()) {
-                    g.drawImage(projImg, pr.getX() + 60, pr.getY(), -60, 20, null);
-                } else {
-                    g.drawImage(projImg, pr.getX(), pr.getY(), 60, 20, null);
-                }
+            Image img = pr.getImage();
+            if (img != null) {
+                if (!pr.isFromPlayer()) g.drawImage(img, pr.getX() + 60, pr.getY(), -60, 20, null);
+                else g.drawImage(img, pr.getX(), pr.getY(), 60, 20, null);
             } else {
                 g.setColor(pr.isFromPlayer() ? Color.RED : Color.YELLOW);
                 g.fillRect(pr.getX(), pr.getY(), 20, 8);
             }
+        }
+
+        // NOTIFIKASI
+        if (System.currentTimeMillis() < notificationEndTime && !notificationText.isEmpty()) {
+            g.setFont(new Font("Dialog", Font.BOLD, 30));
+            FontMetrics fm = g.getFontMetrics();
+            int w = fm.stringWidth(notificationText);
+            int h = fm.getHeight();
+            g.setColor(new Color(0, 0, 0, 150));
+            g.fillRect((getWidth() - w)/2 - 20, (getHeight() - h)/2 - 10, w + 40, h + 20);
+            g.setColor(Color.WHITE);
+            g.drawString(notificationText, (getWidth() - w)/2, (getHeight()/2) + 10);
         }
     }
 }

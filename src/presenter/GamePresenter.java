@@ -21,14 +21,16 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
 
     private Timer gameLoopTimer;
     private Timer autoShootTimer;
+    private Timer voiceOverTimer; // NEW
+
     private boolean isPaused = false;
+    private boolean isRemotePause = false;
 
     public GamePresenter(GameContract.View view) {
         this.view = view;
         sync.setGameState(gameState);
+        sync.setPresenter(this);
         sync.setOnGameStartCallback(this::onGameStartConfirmed);
-
-        // Load Assets di awal
         AssetLoader.getInstance().loadAllAssets();
         net.addListener(this);
     }
@@ -56,9 +58,7 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
         player = new Player(myChar, playerName);
         enemy  = new Enemy(enemyChar, "Lawan");
 
-        // Setup Images
         AssetLoader al = AssetLoader.getInstance();
-        // Load image logic (Sama seperti sebelumnya)
         player.setNormalImage(myChar == CharacterType.CAKIL ? al.getCakilNormal() : al.getSabrangNormal());
         player.setBuffedImage(myChar == CharacterType.CAKIL ? al.getCakilBuffed() : al.getSabrangBuffed());
         player.setDamagedImage(myChar == CharacterType.CAKIL ? al.getCakilDamaged() : al.getSabrangDamaged());
@@ -78,10 +78,7 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
     }
 
     private void onGameStartConfirmed() {
-        // Mencegah double start
         if (gameState.getState() == Constants.STATE_PLAYING) return;
-
-        // Pastikan dijalankan di Thread UI agar aman
         SwingUtilities.invokeLater(() -> {
             gameState.setState(Constants.STATE_PLAYING);
             view.startGameDisplay();
@@ -91,62 +88,129 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
     }
 
     private void startGameLoops() {
-        // 1. Main Game Loop (Movement & Update) - 60 FPS
         gameLoopTimer = new Timer(16, e -> {
-            if (isPaused) return; // Cek pause
-
-            if (gameState.getState() == Constants.STATE_GAME_OVER) {
-                stopGame();
-                return;
-            }
+            if (isPaused) return;
+            if (gameState.getState() == Constants.STATE_GAME_OVER) { stopGame(); return; }
             gameState.update();
             view.repaintGame();
             checkGameOver();
         });
         gameLoopTimer.start();
 
-        // 2. Auto Shoot Timer (3x per detik = ~333ms)
         autoShootTimer = new Timer(333, e -> {
-            if (isPaused) return; // Cek pause
-
-            if (gameState.getState() == Constants.STATE_PLAYING) {
-                performAutoShoot();
-            }
+            if (isPaused) return;
+            if (gameState.getState() == Constants.STATE_PLAYING) performAutoShoot();
         });
         autoShootTimer.start();
+
+        // Voice Over Timer (5 detik)
+        voiceOverTimer = new Timer(5000, e -> {
+            if (isPaused || player == null || player.isDead()) return;
+            String sound = (player.getType() == CharacterType.CAKIL) ? "cakil_sound.wav" : "gareng_sound.wav";
+            AudioPlayer.getInstance().playSFX(sound);
+        });
+        voiceOverTimer.start();
     }
 
-    // --- PAUSE & RESUME SYSTEM ---
-    public void pauseGame() {
+    // --- PAUSE SYSTEM ---
+    public void startLocalPause() {
+        pauseGame(false);
+        sync.syncPause();
+    }
+
+    public void endLocalPause() {
+        resumeGame();
+        sync.syncResume();
+    }
+
+    public void pauseGame(boolean fromRemote) {
         isPaused = true;
+        isRemotePause = fromRemote;
         if (gameLoopTimer != null) gameLoopTimer.stop();
         if (autoShootTimer != null) autoShootTimer.stop();
+        if (voiceOverTimer != null) voiceOverTimer.stop();
+
+        if (fromRemote) showSkillNotification("Lawan sedang merapal mantra...");
     }
 
     public void resumeGame() {
         isPaused = false;
+        isRemotePause = false;
         if (gameLoopTimer != null) gameLoopTimer.start();
         if (autoShootTimer != null) autoShootTimer.start();
-        // Kembalikan fokus ke game canvas lewat view
+        if (voiceOverTimer != null) voiceOverTimer.start();
         view.startGameDisplay();
     }
 
     private void stopGame() {
         if (gameLoopTimer != null) gameLoopTimer.stop();
         if (autoShootTimer != null) autoShootTimer.stop();
-
+        if (voiceOverTimer != null) voiceOverTimer.stop();
         String winner = gameState.getWinner();
         boolean isWinner = winner != null && player != null && winner.equals(player.getType().name());
         view.showResult(winner, isWinner);
     }
 
     private void checkGameOver() {
-        if (gameState.getState() == Constants.STATE_GAME_OVER) {
-            stopGame();
-        }
+        if (gameState.getState() == Constants.STATE_GAME_OVER) stopGame();
     }
 
-    // --- CONTROLS ---
+    @Override
+    public void onSkill(int index) {
+        if (player == null || player.isDead() || isPaused) return;
+        List<Skill> skills = player.getSkills();
+        if (index < 0 || index >= skills.size()) return;
+
+        Skill s = skills.get(index);
+        if (!player.consumeSukma(s.getSukmaCost())) {
+            showSkillNotification("Sukma Tidak Cukup!");
+            return;
+        }
+
+        startLocalPause(); // Freeze Game
+        view.showQuiz(player, s);
+    }
+
+    public void applySkill(GameCharacter c, Skill s, boolean sendSync) {
+        AudioPlayer.getInstance().playSFX("skill_ok.wav");
+        String notifText = "";
+
+        switch (s.getType()) {
+            case ATTACK:
+                int dmg = s.getDamage() + (int)(c.getBaseAttack() * 0.1);
+                Projectile p = new Projectile(c.getX(), c.getY() + 40, c.getLane(), Constants.PROJECTILE_SPEED + 5, dmg, true, c.getProjectileImage());
+                gameState.addProjectile(p);
+                if (sendSync) sync.syncSkillAttack(c.getLane(), dmg);
+                notifText = "Skill Serangan! +" + dmg + " DMG";
+                break;
+            case DEFENCE:
+            case BUFF:
+                int dur = (int)(s.getBuffDurationMillis()/1000);
+                if (s.isImmuneDamage()) {
+                    c.setImmuneDamage(true);
+                    if (sendSync) sync.syncSkillActivate(s.getId(), "Immune", dur);
+                    notifText = "KEBAL " + dur + " Detik!";
+                }
+                if (s.getAttackMultiplier() > 1.0) {
+                    c.setAttackMultiplier(s.getAttackMultiplier());
+                    String key = s.getAttackMultiplier() == 1.3 ? "ATK30" : "ATK50";
+                    if (sendSync) sync.syncSkillActivate(s.getId(), key, dur);
+                    notifText = "ATK +" + (s.getAttackMultiplier()==1.3?"30%":"50%");
+                }
+                if (s.getAttackSpeedMultiplier() > 1.0) {
+                    c.setAttackSpeedMultiplier(s.getAttackSpeedMultiplier());
+                    if (sendSync) sync.syncSkillActivate(s.getId(), "ATKSPD30", dur);
+                    notifText = "Speed +30%";
+                }
+                break;
+        }
+        showSkillNotification(notifText);
+    }
+
+    public void showSkillNotification(String text) {
+        if (view != null) view.showNotification(text);
+    }
+
     @Override
     public void onMoveUp() {
         if (player == null || isPaused) return;
@@ -163,70 +227,10 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
 
     private void performAutoShoot() {
         if (player == null || player.isDead()) return;
-
-        // FIX: Posisi Spawn (Y + 40) agar keluar dari tengah badan/tangan
-        int spawnY = player.getY() + 40;
-
-        Projectile p = new Projectile(
-                player.getX(), spawnY, player.getLane(),
-                Constants.PROJECTILE_SPEED, player.getCurrentDamage(),
-                true, player.getProjectileImage()
-        );
+        Projectile p = new Projectile(player.getX(), player.getY() + 40, player.getLane(), Constants.PROJECTILE_SPEED, player.getCurrentDamage(), true, player.getProjectileImage());
         gameState.addProjectile(p);
         AudioPlayer.getInstance().playSFX("shoot.wav");
         sync.syncShoot(player.getLane(), player.getCurrentDamage());
-    }
-
-    @Override
-    public void onSkill(int index) {
-        if (player == null || player.isDead() || isPaused) return;
-        List<Skill> skills = player.getSkills();
-        if (index < 0 || index >= skills.size()) return;
-
-        Skill s = skills.get(index);
-        if (!player.consumeSukma(s.getSukmaCost())) {
-            System.out.println("Sukma tidak cukup!");
-            return;
-        }
-
-        // PAUSE GAME SAAT QUIZ MUNCUL
-        pauseGame();
-        view.showQuiz(player, s);
-    }
-
-    public void applySkill(GameCharacter c, Skill s, boolean sendSync) {
-        AudioPlayer.getInstance().playSFX("skill_ok.wav");
-
-        switch (s.getType()) {
-            case ATTACK:
-                int dmg = s.getDamage() + (int)(c.getBaseAttack() * 0.1);
-                // Skill projectile spawn di tengah juga
-                Projectile skillProj = new Projectile(
-                        c.getX(), c.getY() + 40, c.getLane(),
-                        Constants.PROJECTILE_SPEED + 5,
-                        dmg, true, c.getProjectileImage()
-                );
-                gameState.addProjectile(skillProj);
-                if (sendSync) sync.syncSkillAttack(c.getLane(), dmg);
-                break;
-            case DEFENCE:
-            case BUFF:
-                if (s.isImmuneDamage()) {
-                    c.setImmuneDamage(true);
-                    if (sendSync) sync.syncSkillActivate(s.getId(), "Immune", (int)(s.getBuffDurationMillis()/1000));
-                }
-                if (s.getAttackMultiplier() > 1.0) {
-                    c.setAttackMultiplier(s.getAttackMultiplier());
-                    if (sendSync) sync.syncSkillActivate(s.getId(), s.getAttackMultiplier() == 1.3 ? "ATK30" : "ATK50",
-                            (int)(s.getBuffDurationMillis()/1000));
-                }
-                if (s.getAttackSpeedMultiplier() > 1.0) {
-                    c.setAttackSpeedMultiplier(s.getAttackSpeedMultiplier());
-                    if (sendSync) sync.syncSkillActivate(s.getId(), "ATKSPD30",
-                            (int)(s.getBuffDurationMillis()/1000));
-                }
-                break;
-        }
     }
 
     @Override
@@ -234,29 +238,27 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
     @Override
     public List<Projectile> getProjectiles() { return gameState.getProjectiles(); }
 
-    // --- NETWORK CALLBACKS ---
     @Override
     public void onMessageReceived(String type, String data) {
         switch (type) {
             case Constants.MSG_PLAYER_JOINED:
                 if (net.isServer()) {
-                    // FIX: Beri delay 1 detik agar Client siap menerima pesan START
                     new Thread(() -> {
                         try { Thread.sleep(1000); } catch (InterruptedException e) {}
-                        sync.syncGameStart(); // Kirim ke client
-                        onGameStartConfirmed(); // Start server sendiri
+                        sync.syncGameStart();
+                        onGameStartConfirmed();
                     }).start();
                 }
                 break;
-            case Constants.MSG_GAME_START:
-                onGameStartConfirmed();
-                break;
-            case Constants.MSG_MOVE:           sync.handleRemoteMove(data); break;
-            case Constants.MSG_SHOOT:          sync.handleRemoteShoot(data); break;
-            case Constants.MSG_SKILL_ATTACK:   sync.handleRemoteSkillAttack(data); break;
-            case Constants.MSG_DAMAGE:         sync.handleRemoteDamage(data); break;
+            case Constants.MSG_GAME_START: onGameStartConfirmed(); break;
+            case Constants.MSG_MOVE: sync.handleRemoteMove(data); break;
+            case Constants.MSG_SHOOT: sync.handleRemoteShoot(data); break;
+            case Constants.MSG_SKILL_ATTACK: sync.handleRemoteSkillAttack(data); break;
+            case Constants.MSG_DAMAGE: sync.handleRemoteDamage(data); break;
             case Constants.MSG_SKILL_ACTIVATE: sync.handleRemoteSkillActivate(data); break;
-            case Constants.MSG_GAME_OVER:      sync.handleGameOver(data); break;
+            case Constants.MSG_GAME_OVER: sync.handleGameOver(data); break;
+            case Constants.MSG_PAUSE: sync.handleRemotePause(); break;
+            case Constants.MSG_RESUME: sync.handleRemoteResume(); break;
         }
     }
 }

@@ -31,11 +31,9 @@ public class GameWindow extends JFrame {
 
         presenter = new GamePresenter(new viewAdapter());
 
-        // Panel 1: Waiting
         waitingPanel = new WaitingPanel("Menunggu lawan...");
         mainContainer.add(waitingPanel, "WAITING");
 
-        // Panel 2: Game Area
         JPanel gamePanel = new JPanel(new BorderLayout());
         canvas = new GameCanvas(presenter);
         hud = new HUDPanel(presenter);
@@ -63,38 +61,28 @@ public class GameWindow extends JFrame {
 
     public void startGame() {
         cardLayout.show(mainContainer, "GAME");
-        // FIX: Request Focus agar keyboard langsung jalan
         canvas.requestFocusInWindow();
     }
 
     private class viewAdapter implements presenter.GameContract.View {
         @Override
         public void onStateUpdated(model.GameState state) {}
-
         @Override
         public void showQuiz(GameCharacter self, Skill skill) {
-            SwingUtilities.invokeLater(() ->
-                    new QuizDialog(GameWindow.this, presenter, self, skill)
-            );
+            SwingUtilities.invokeLater(() -> new QuizDialog(GameWindow.this, presenter, self, skill));
         }
-
         @Override
         public void showResult(String winner, boolean isWinner) {
-            SwingUtilities.invokeLater(() ->
-                    new ResultDialog(GameWindow.this, winner, isWinner)
-            );
+            SwingUtilities.invokeLater(() -> new ResultDialog(GameWindow.this, winner, isWinner));
         }
-
         @Override
         public void repaintGame() {
             canvas.repaint();
             hud.repaint();
         }
-
         @Override
-        public void startGameDisplay() {
-            // Dipanggil saat game mulai ATAU resume dari pause
-            GameWindow.this.startGame();
-        }
+        public void startGameDisplay() { GameWindow.this.startGame(); }
+        @Override
+        public void showNotification(String text) { canvas.setNotification(text); }
     }
 }
