@@ -3,17 +3,18 @@ package model;
 import model.entities.Enemy;
 import model.entities.Player;
 import model.entities.Projectile;
+import util.AudioPlayer; // FIX: Pastikan ini di-import
 import util.Constants;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class GameState {
 
     private Player player;
     private Enemy enemy;
-    private final List<Projectile> projectiles = new ArrayList<>();
-
+    private final List<Projectile> projectiles = new CopyOnWriteArrayList<>();
     private String winner;
     private int state = Constants.STATE_LOADING;
 
@@ -35,13 +36,22 @@ public class GameState {
         List<Projectile> toRemove = new ArrayList<>();
         for (Projectile p : projectiles) {
             p.update();
+
+            // Cek Tabrakan: Peluru Musuh Kena Player Kita
             if (player != null && !p.isFromPlayer() && p.collidesWith(player)) {
                 player.takeDamage(p.getDamage());
                 toRemove.add(p);
-            } else if (enemy != null && p.isFromPlayer() && p.collidesWith(enemy)) {
+
+                // FIX: Mainkan suara sakit disini!
+                System.out.println("Player Hit! Playing sound..."); // Debug
+                AudioPlayer.getInstance().playRandomHitSound();
+            }
+            // Cek Tabrakan: Peluru Kita Kena Musuh
+            else if (enemy != null && p.isFromPlayer() && p.collidesWith(enemy)) {
                 enemy.takeDamage(p.getDamage());
                 toRemove.add(p);
-            } else if (p.isExpired()) {
+            }
+            else if (p.isExpired()) {
                 toRemove.add(p);
             }
         }

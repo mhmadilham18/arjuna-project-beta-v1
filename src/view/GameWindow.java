@@ -22,7 +22,11 @@ public class GameWindow extends JFrame {
 
     public GameWindow(String playerName, boolean isServer, String host) {
         setTitle("Arjuna Battle - " + playerName);
-        setSize(1280, 760);
+
+        // UBAH DISINI: Maximize Window
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setUndecorated(false); // Set true jika ingin hilang bar atas (Full Screen total)
+
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 

@@ -34,32 +34,14 @@ public class StateSynchronizer {
         this.onGameStartCallback = callback;
     }
 
-    // --- PAUSE & RESUME ---
-    public void syncPause() {
-        net.sendMessage(Constants.MSG_PAUSE, "STOP");
-    }
+    public void syncPause() { net.sendMessage(Constants.MSG_PAUSE, "STOP"); }
+    public void handleRemotePause() { if (presenter != null) presenter.pauseGame(true); }
 
-    public void handleRemotePause() {
-        if (presenter != null) presenter.pauseGame(true);
-    }
+    public void syncResume() { net.sendMessage(Constants.MSG_RESUME, "GO"); }
+    public void handleRemoteResume() { if (presenter != null) presenter.resumeGame(); }
 
-    public void syncResume() {
-        net.sendMessage(Constants.MSG_RESUME, "GO");
-    }
-
-    public void handleRemoteResume() {
-        if (presenter != null) presenter.resumeGame();
-    }
-
-    // --- GAME FLOW ---
-    public void syncGameStart() {
-        net.sendMessage(Constants.MSG_GAME_START, "GO");
-    }
-
-    // --- MOVEMENT ---
-    public void syncPlayerMove(int lane) {
-        net.sendMessage(Constants.MSG_MOVE, String.valueOf(lane));
-    }
+    public void syncGameStart() { net.sendMessage(Constants.MSG_GAME_START, "GO"); }
+    public void syncPlayerMove(int lane) { net.sendMessage(Constants.MSG_MOVE, String.valueOf(lane)); }
 
     public void handleRemoteMove(String data) {
         synchronized (lock) {
@@ -72,22 +54,11 @@ public class StateSynchronizer {
         }
     }
 
-    // --- SHOOTING ---
-    public void syncShoot(int lane, int damage) {
-        net.sendMessage(Constants.MSG_SHOOT, lane + "," + damage);
-    }
+    public void syncShoot(int lane, int damage) { net.sendMessage(Constants.MSG_SHOOT, lane + "," + damage); }
+    public void handleRemoteShoot(String data) { spawnRemoteProjectile(data, false); }
 
-    public void handleRemoteShoot(String data) {
-        spawnRemoteProjectile(data, false);
-    }
-
-    public void syncSkillAttack(int lane, int damage) {
-        net.sendMessage(Constants.MSG_SKILL_ATTACK, lane + "," + damage);
-    }
-
-    public void handleRemoteSkillAttack(String data) {
-        spawnRemoteProjectile(data, true);
-    }
+    public void syncSkillAttack(int lane, int damage) { net.sendMessage(Constants.MSG_SKILL_ATTACK, lane + "," + damage); }
+    public void handleRemoteSkillAttack(String data) { spawnRemoteProjectile(data, true); }
 
     private void spawnRemoteProjectile(String data, boolean isSkill) {
         synchronized (lock) {
@@ -97,19 +68,16 @@ public class StateSynchronizer {
                 int lane = Integer.parseInt(parts[0]);
                 int dmg = Integer.parseInt(parts[1]);
                 Enemy enemy = gameState.getEnemy();
-                Projectile p = new Projectile(
-                        enemy.getX(), enemy.getY() + 40, lane,
-                        Constants.PROJECTILE_SPEED, dmg, false,
-                        enemy.getProjectileImage()
-                );
+                Projectile p = new Projectile(enemy.getX(), enemy.getY() + 40, lane, Constants.PROJECTILE_SPEED, dmg, false, enemy.getProjectileImage());
                 gameState.addProjectile(p);
             } catch (Exception ignored) {}
         }
     }
 
-    // --- SKILLS ---
-    public void syncSkillActivate(int skillIndex, String effectKey, int durationSec) {
-        net.sendMessage(Constants.MSG_SKILL_ACTIVATE, skillIndex + "," + effectKey + "," + durationSec);
+    // --- MODIFIKASI DISINI: SKILL NAME SYNC ---
+    public void syncSkillActivate(int skillIndex, String skillName, String effectKey, int durationSec) {
+        // Format: ID, Nama, Efek, Durasi
+        net.sendMessage(Constants.MSG_SKILL_ACTIVATE, skillIndex + "," + skillName + "," + effectKey + "," + durationSec);
     }
 
     public void handleRemoteSkillActivate(String data) {
@@ -117,12 +85,14 @@ public class StateSynchronizer {
             if (gameState == null || gameState.getEnemy() == null) return;
             try {
                 String[] parts = data.split(",");
-                String effect = parts[1];
-                int duration = Integer.parseInt(parts[2]);
+                // parts[0] = index (skip)
+                String skillName = parts[1]; // Nama Skill
+                String effect = parts[2];    // Key Effect
+                int duration = Integer.parseInt(parts[3]);
 
-                // Show notification
+                // Tampilkan nama skill musuh di layar kita
                 if (presenter != null) {
-                    presenter.showSkillNotification("Musuh: " + effect + " (" + duration + "s)");
+                    presenter.showSkillNotification("Lawan: " + skillName + "!");
                 }
 
                 applySkillEffect(gameState.getEnemy(), effect, duration);
@@ -148,23 +118,14 @@ public class StateSynchronizer {
         }).start();
     }
 
-    public void syncDamage(int damage) {
-        net.sendMessage(Constants.MSG_DAMAGE, String.valueOf(damage));
-    }
-
+    public void syncDamage(int damage) { net.sendMessage(Constants.MSG_DAMAGE, String.valueOf(damage)); }
     public void handleRemoteDamage(String data) {
         synchronized (lock) {
             if (gameState == null || gameState.getPlayer() == null) return;
-            try {
-                gameState.getPlayer().takeDamage(Integer.parseInt(data));
-            } catch (Exception ignored) {}
+            try { gameState.getPlayer().takeDamage(Integer.parseInt(data)); } catch (Exception ignored) {}
         }
     }
-
-    public void syncGameOver(String winner) {
-        net.sendMessage(Constants.MSG_GAME_OVER, winner);
-    }
-
+    public void syncGameOver(String winner) { net.sendMessage(Constants.MSG_GAME_OVER, winner); }
     public void handleGameOver(String winner) {
         synchronized (lock) {
             if (gameState != null) {
