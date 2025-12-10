@@ -17,51 +17,46 @@ public class QuizDialog extends JDialog {
     private final QuizQuestion question;
 
     public QuizDialog(Frame owner, GamePresenter presenter, GameCharacter character, Skill skill) {
-        super(owner, "Matra Skill", true);
+        super(owner, "Rapal Mantra (Quiz)", true); // Modal true = pause game click
 
         this.presenter = presenter;
         this.character = character;
         this.skill = skill;
         this.question = QuizDatabase.getInstance().getRandom(character.getType());
 
-        if (question == null) {
-            dispose();
-            return;
-        }
-
-        setSize(500, 300);
+        setSize(600, 350);
         setLocationRelativeTo(owner);
-        setLayout(new GridLayout(5, 1));
+        setLayout(new GridLayout(5, 1, 10, 10));
 
-        JLabel qLabel = new JLabel(question.getQuestion(), SwingConstants.CENTER);
-        qLabel.setFont(new Font("Dialog", Font.BOLD, 16));
+        if (question == null) { dispose(); return; }
+
+        JLabel qLabel = new JLabel("<html><center>" + question.getQuestion() + "</center></html>", SwingConstants.CENTER);
+        qLabel.setFont(new Font("Dialog", Font.BOLD, 14));
         add(qLabel);
 
-        JButton btnA = new JButton("A. " + question.getOptionA());
-        JButton btnB = new JButton("B. " + question.getOptionB());
-        JButton btnC = new JButton("C. " + question.getOptionC());
-
-        btnA.addActionListener(e -> submitAnswer('A'));
-        btnB.addActionListener(e -> submitAnswer('B'));
-        btnC.addActionListener(e -> submitAnswer('C'));
-
-        add(btnA);
-        add(btnB);
-        add(btnC);
+        add(createButton("A. " + question.getOptionA(), 'A'));
+        add(createButton("B. " + question.getOptionB(), 'B'));
+        add(createButton("C. " + question.getOptionC(), 'C'));
 
         setVisible(true);
+    }
+
+    private JButton createButton(String text, char ans) {
+        JButton btn = new JButton(text);
+        btn.addActionListener(e -> submitAnswer(ans));
+        return btn;
     }
 
     private void submitAnswer(char ans) {
         boolean correct = (ans == question.getCorrectAnswer());
 
         if (correct) {
-            JOptionPane.showMessageDialog(this, "Matra berhasil!");
+            JOptionPane.showMessageDialog(this, "Mantra Berhasil! Skill Aktif.");
             presenter.applySkill(character, skill, true);
         } else {
-            JOptionPane.showMessageDialog(this, "Matra gagal...");
+            JOptionPane.showMessageDialog(this, "Mantra Gagal... Sukma dikembalikan.");
+            character.addSukma(skill.getSukmaCost());
         }
-
         dispose();
     }
 }

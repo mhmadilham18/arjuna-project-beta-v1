@@ -3,9 +3,9 @@ package view;
 import model.data.Skill;
 import model.entities.GameCharacter;
 import presenter.GamePresenter;
-import view.GameCanvas;
 import view.components.HUDPanel;
 import view.components.QuizDialog;
+import view.components.ResultDialog;
 import view.components.WaitingPanel;
 
 import javax.swing.*;
@@ -17,63 +17,86 @@ public class GameWindow extends JFrame {
     private GameCanvas canvas;
     private HUDPanel hud;
     private WaitingPanel waitingPanel;
+    private JPanel mainContainer;
+    private CardLayout cardLayout;
 
     public GameWindow(String playerName, boolean isServer, String host) {
-        setTitle("Arjuna Battle");
-        setSize(1280, 720);
+        setTitle("Arjuna Battle - " + playerName);
+        setSize(1280, 760);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        setLayout(new BorderLayout());
+
+        cardLayout = new CardLayout();
+        mainContainer = new JPanel(cardLayout);
 
         presenter = new GamePresenter(new viewAdapter());
+
+        // Panel 1: Waiting
+        waitingPanel = new WaitingPanel("Menunggu lawan...");
+        mainContainer.add(waitingPanel, "WAITING");
+
+        // Panel 2: Game Area
+        JPanel gamePanel = new JPanel(new BorderLayout());
         canvas = new GameCanvas(presenter);
         hud = new HUDPanel(presenter);
+        gamePanel.add(canvas, BorderLayout.CENTER);
+        gamePanel.add(hud, BorderLayout.SOUTH);
+        mainContainer.add(gamePanel, "GAME");
 
+        add(mainContainer);
+
+        // Start Network Logic
         if (isServer) {
+            showWaiting("Menunggu koneksi Player 2...");
             presenter.startGameAsServer(playerName, 5000);
         } else {
+            showWaiting("Menghubungkan ke Server...");
             presenter.startGameAsClient(playerName, host, 5000);
         }
 
-        addKeyListener(canvas);
         setFocusable(true);
-    }
-
-    public void showWaiting(String message) {
-        waitingPanel = new WaitingPanel(message);
-        setContentPane(waitingPanel);
         setVisible(true);
     }
 
+    public void showWaiting(String message) {
+        cardLayout.show(mainContainer, "WAITING");
+    }
+
+    // Dipanggil oleh Presenter saat game benar-benar mulai
     public void startGame() {
-        JPanel container = new JPanel(new BorderLayout());
-        container.add(canvas, BorderLayout.CENTER);
-        container.add(hud, BorderLayout.SOUTH);
-        setContentPane(container);
-        revalidate();
-        repaint();
+        cardLayout.show(mainContainer, "GAME");
+        canvas.requestFocusInWindow();
+        addKeyListener(canvas); // Pindahkan listener ke frame/canvas aktif
     }
 
     private class viewAdapter implements presenter.GameContract.View {
-
         @Override
         public void onStateUpdated(model.GameState state) {}
 
         @Override
         public void showQuiz(GameCharacter self, Skill skill) {
-            new QuizDialog(GameWindow.this, presenter, self, skill);
+            // Gunakan invokeLater agar tidak memblokir render thread secara kasar
+            SwingUtilities.invokeLater(() ->
+                    new QuizDialog(GameWindow.this, presenter, self, skill)
+            );
         }
-
 
         @Override
         public void showResult(String winner, boolean isWinner) {
-            new view.components.ResultDialog(GameWindow.this, winner, isWinner);
+            SwingUtilities.invokeLater(() ->
+                    new ResultDialog(GameWindow.this, winner, isWinner)
+            );
         }
 
         @Override
         public void repaintGame() {
             canvas.repaint();
             hud.repaint();
+        }
+
+        @Override
+        public void startGameDisplay() {
+            GameWindow.this.startGame();
         }
     }
 }

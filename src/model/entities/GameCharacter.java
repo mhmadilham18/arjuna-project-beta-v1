@@ -21,13 +21,13 @@ public class GameCharacter {
     protected int hp;
     protected int sukma;
     protected int baseAttack = 10;
-    protected int attackSpeedMillis = 333;
+//    protected int attackSpeedMillis = 333;
     protected int lane = 4;
 
     protected CharacterState state = CharacterState.NORMAL;
-
     protected long lastSukmaRecharge;
-    protected long lastAttackTime;
+
+//    protected long lastAttackTime;
 
     protected List<Skill> skills;
 
@@ -75,16 +75,6 @@ public class GameCharacter {
         this.y = lane * Constants.LANE_HEIGHT + 20;
     }
 
-    public boolean canAttack() {
-        long now = System.currentTimeMillis();
-        int actual = (int) (attackSpeedMillis / attackSpeedMultiplier);
-        return now - lastAttackTime >= actual;
-    }
-
-    public void onAttack() {
-        lastAttackTime = System.currentTimeMillis();
-    }
-
     public void takeDamage(int damage) {
         if (immuneDamage) return;
         hp = Math.max(0, hp - damage);
@@ -95,6 +85,8 @@ public class GameCharacter {
         return (int) (baseAttack * attackMultiplier);
     }
 
+    public int getBaseAttack() { return baseAttack; }
+
     public Image getCurrentImage() {
         switch (state) {
             case BUFFED: return buffedImage != null ? buffedImage : normalImage;
@@ -103,9 +95,23 @@ public class GameCharacter {
         }
     }
 
-    // getters/setters
+    // --- Helpers ---
+    public boolean consumeSukma(int amount) {
+        if (sukma < amount) return false;
+        sukma -= amount;
+        return true;
+    }
+
+    public void addSukma(int amount) {
+        this.sukma = Math.min(MAX_SUKMA, this.sukma + amount);
+    }
+
+    public boolean isDead() { return hp <= 0; }
+
+    // --- Getters & Setters ---
     public CharacterType getType() { return type; }
     public boolean isPlayer() { return isPlayer; }
+    public String getPlayerName() { return playerName; } // Added
     public int getHp() { return hp; }
     public int getSukma() { return sukma; }
     public int getLane() { return lane; }
@@ -127,12 +133,4 @@ public class GameCharacter {
     public void setImmuneDamage(boolean immuneDamage) { this.immuneDamage = immuneDamage; }
     public void setAttackMultiplier(double attackMultiplier) { this.attackMultiplier = attackMultiplier; }
     public void setAttackSpeedMultiplier(double attackSpeedMultiplier) { this.attackSpeedMultiplier = attackSpeedMultiplier; }
-
-    public boolean consumeSukma(int amount) {
-        if (sukma < amount) return false;
-        sukma -= amount;
-        return true;
-    }
-
-    public boolean isDead() { return hp <= 0; }
 }

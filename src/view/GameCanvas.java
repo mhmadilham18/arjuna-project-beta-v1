@@ -43,9 +43,6 @@ public class GameCanvas extends JPanel implements KeyListener {
             case KeyEvent.VK_DOWN:
                 presenter.onMoveDown();
                 break;
-            case KeyEvent.VK_SPACE:
-                presenter.onShoot();
-                break;
             case KeyEvent.VK_1:
                 presenter.onSkill(0);
                 break;
