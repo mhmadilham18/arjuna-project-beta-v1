@@ -3,7 +3,7 @@ package model;
 import model.entities.Enemy;
 import model.entities.Player;
 import model.entities.Projectile;
-import util.AudioPlayer; // Import AudioPlayer
+import util.AudioPlayer; // FIX: Pastikan ini di-import
 import util.Constants;
 
 import java.util.ArrayList;
@@ -14,10 +14,7 @@ public class GameState {
 
     private Player player;
     private Enemy enemy;
-
-    // Menggunakan CopyOnWriteArrayList untuk mencegah Crash
     private final List<Projectile> projectiles = new CopyOnWriteArrayList<>();
-
     private String winner;
     private int state = Constants.STATE_LOADING;
 
@@ -40,20 +37,19 @@ public class GameState {
         for (Projectile p : projectiles) {
             p.update();
 
-            // LOGIKA TABRAKAN
-
-            // 1. Jika PELURU MUSUH mengenai PLAYER (KITA)
+            // Cek Tabrakan: Peluru Musuh Kena Player Kita
             if (player != null && !p.isFromPlayer() && p.collidesWith(player)) {
                 player.takeDamage(p.getDamage());
                 toRemove.add(p);
-                // NEW: Mainkan suara sakit hanya jika KITA yang kena
+
+                // FIX: Mainkan suara sakit disini!
+                System.out.println("Player Hit! Playing sound..."); // Debug
                 AudioPlayer.getInstance().playRandomHitSound();
             }
-            // 2. Jika PELURU KITA mengenai MUSUH
+            // Cek Tabrakan: Peluru Kita Kena Musuh
             else if (enemy != null && p.isFromPlayer() && p.collidesWith(enemy)) {
                 enemy.takeDamage(p.getDamage());
                 toRemove.add(p);
-                // (Opsional) Bisa tambah suara hit marker musuh disini
             }
             else if (p.isExpired()) {
                 toRemove.add(p);

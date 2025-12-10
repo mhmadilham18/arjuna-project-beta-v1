@@ -21,7 +21,7 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
 
     private Timer gameLoopTimer;
     private Timer autoShootTimer;
-    // VoiceOver timer dihapus sesuai permintaan sebelumnya
+    // HAPUS: private Timer voiceOverTimer;  <-- SUDAH DIHAPUS
 
     private boolean isPaused = false;
     private boolean isRemotePause = false;
@@ -89,6 +89,7 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
     }
 
     private void startGameLoops() {
+        // 1. Loop Utama (Gerakan & Logika)
         gameLoopTimer = new Timer(16, e -> {
             if (isPaused) return;
             if (gameState.getState() == Constants.STATE_GAME_OVER) { stopGame(); return; }
@@ -98,11 +99,16 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
         });
         gameLoopTimer.start();
 
+        // 2. Loop Tembakan Otomatis
         autoShootTimer = new Timer(333, e -> {
             if (isPaused) return;
             if (gameState.getState() == Constants.STATE_PLAYING) performAutoShoot();
         });
         autoShootTimer.start();
+
+        // CATATAN PENTING:
+        // Timer voiceOverTimer SUDAH DIHAPUS DISINI.
+        // Jadi suara tidak akan muncul otomatis setiap 5 detik lagi.
     }
 
     // --- PAUSE SYSTEM ---
@@ -166,20 +172,19 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
             return;
         }
 
-        view.repaintGame(); // Update UI Sukma
-        startLocalPause(); // Freeze Game
+        view.repaintGame();
+        startLocalPause();
         view.showQuiz(player, s);
     }
 
     public void applySkill(GameCharacter c, Skill s, boolean sendSync) {
         AudioPlayer.getInstance().playSFX("skill_ok.wav");
 
+        // SUARA KARAKTER HANYA SAAT SKILL BERHASIL
         if (c.isPlayer()) {
             if (c.getType() == CharacterType.CAKIL) AudioPlayer.getInstance().playSFX("cakil_sound.wav");
             else AudioPlayer.getInstance().playSFX("gareng_sound.wav");
         }
-
-        // --- MODIFIKASI: Kirim Nama Skill ---
 
         switch (s.getType()) {
             case ATTACK:
@@ -194,7 +199,6 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
                 int dur = (int)(s.getBuffDurationMillis()/1000);
                 if (s.isImmuneDamage()) {
                     c.setImmuneDamage(true);
-                    // Kirim NAMA SKILL (s.getName())
                     if (sendSync) sync.syncSkillActivate(s.getId(), s.getName(), "Immune", dur);
                 }
                 if (s.getAttackMultiplier() > 1.0) {
@@ -210,7 +214,6 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
                 break;
         }
 
-        // Tampilkan Nama Skill secara Lokal
         showSkillNotification(s.getName() + " Aktif!");
     }
 

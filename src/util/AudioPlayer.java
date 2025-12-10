@@ -7,7 +7,7 @@ import java.util.Random;
 public class AudioPlayer {
     private static AudioPlayer instance;
     private String basePath = "src/assets/audio/";
-    private Random random = new Random(); // Untuk acak suara
+    private Random random = new Random();
 
     private AudioPlayer() {}
 
@@ -20,7 +20,10 @@ public class AudioPlayer {
         new Thread(() -> {
             try {
                 File f = new File(basePath + filename);
-                if (!f.exists()) return;
+                if (!f.exists()) {
+                    System.err.println("[AUDIO ERROR] BGM Not Found: " + filename);
+                    return;
+                }
                 AudioInputStream audioIn = AudioSystem.getAudioInputStream(f);
                 Clip clip = AudioSystem.getClip();
                 clip.open(audioIn);
@@ -37,7 +40,7 @@ public class AudioPlayer {
             try {
                 File f = new File(basePath + filename);
                 if (!f.exists()) {
-                     System.err.println("File audio tidak ditemukan: " + filename);
+                    System.err.println("[AUDIO ERROR] SFX Not Found: " + filename);
                     return;
                 }
                 AudioInputStream audioIn = AudioSystem.getAudioInputStream(f);
@@ -48,8 +51,8 @@ public class AudioPlayer {
         }).start();
     }
 
-    // NEW: Metode untuk suara sakit acak
     public void playRandomHitSound() {
+        // Random 50:50
         if (random.nextBoolean()) {
             playSFX("aw.wav");
         } else {
