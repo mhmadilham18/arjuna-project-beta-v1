@@ -8,6 +8,7 @@ import util.Constants;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.geom.AffineTransform; // Import ini
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 
@@ -19,6 +20,7 @@ public class GameCanvas extends JPanel implements KeyListener {
 
     public GameCanvas(GamePresenter presenter) {
         this.presenter = presenter;
+        // PreferredSize tetap, tapi nanti akan di-stretch
         setPreferredSize(new Dimension(Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT));
         setBackground(Color.BLACK);
         setFocusable(true);
@@ -27,7 +29,7 @@ public class GameCanvas extends JPanel implements KeyListener {
 
     public void setNotification(String text) {
         this.notificationText = text;
-        this.notificationEndTime = System.currentTimeMillis() + 2000; // 2 detik
+        this.notificationEndTime = System.currentTimeMillis() + 2000;
         repaint();
     }
 
@@ -50,15 +52,27 @@ public class GameCanvas extends JPanel implements KeyListener {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
+
+        // --- LOGIKA ZOOM/SCALING AGAR FULL SCREEN ---
+        Graphics2D g2 = (Graphics2D) g;
+        AffineTransform oldTransform = g2.getTransform(); // Simpan settingan lama
+
+        double scaleX = (double) getWidth() / Constants.SCREEN_WIDTH;
+        double scaleY = (double) getHeight() / Constants.SCREEN_HEIGHT;
+        g2.scale(scaleX, scaleY); // Stretch gambar
+        // ---------------------------------------------
+
         GameState s = presenter.getGameState();
-        if (s == null) return;
+        if (s == null) {
+            g2.setTransform(oldTransform); // Kembalikan settingan
+            return;
+        }
 
         GameCharacter p = s.getPlayer();
         GameCharacter e = s.getEnemy();
 
         if (p != null) g.drawImage(p.getCurrentImage(), p.getX(), p.getY(), 120, 120, null);
 
-        // FLIP ENEMY IMAGE
         if (e != null) {
             g.drawImage(e.getCurrentImage(), e.getX() + 120, e.getY(), -120, 120, null);
         }
@@ -74,16 +88,24 @@ public class GameCanvas extends JPanel implements KeyListener {
             }
         }
 
-        // NOTIFIKASI
         if (System.currentTimeMillis() < notificationEndTime && !notificationText.isEmpty()) {
+            // Gunakan font dari Constants atau statis, karena di-scale, font juga ikut membesar
             g.setFont(new Font("Dialog", Font.BOLD, 30));
             FontMetrics fm = g.getFontMetrics();
             int w = fm.stringWidth(notificationText);
             int h = fm.getHeight();
+
+            // Koordinat tengah berdasarkan resolusi ASLI (1280x720)
+            int centerX = Constants.SCREEN_WIDTH / 2;
+            int centerY = Constants.SCREEN_HEIGHT / 2;
+
             g.setColor(new Color(0, 0, 0, 150));
-            g.fillRect((getWidth() - w)/2 - 20, (getHeight() - h)/2 - 10, w + 40, h + 20);
+            g.fillRect(centerX - w/2 - 20, centerY - h/2 - 10, w + 40, h + 20);
             g.setColor(Color.WHITE);
-            g.drawString(notificationText, (getWidth() - w)/2, (getHeight()/2) + 10);
+            g.drawString(notificationText, centerX - w/2, centerY + 10);
         }
+
+        // Kembalikan settingan agar tidak merusak komponen lain (opsional)
+        g2.setTransform(oldTransform);
     }
 }
