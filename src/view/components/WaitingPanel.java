@@ -12,3 +12,4 @@ public class WaitingPanel extends JPanel {
         add(label, BorderLayout.CENTER);
     }
 }
+
