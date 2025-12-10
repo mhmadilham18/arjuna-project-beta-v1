@@ -5,6 +5,7 @@ import model.entities.Player;
 import model.entities.Projectile;
 import util.AudioPlayer; // FIX: Pastikan ini di-import
 import util.Constants;
+import util.StateSynchronizer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,10 +46,10 @@ public class GameState {
                 // FIX: Mainkan suara sakit disini!
                 System.out.println("Player Hit! Playing sound..."); // Debug
                 AudioPlayer.getInstance().playRandomHitSound();
+                StateSynchronizer.getInstance().syncMyHp(player.getHp());
             }
             // Cek Tabrakan: Peluru Kita Kena Musuh
             else if (enemy != null && p.isFromPlayer() && p.collidesWith(enemy)) {
-                enemy.takeDamage(p.getDamage());
                 toRemove.add(p);
             }
             else if (p.isExpired()) {

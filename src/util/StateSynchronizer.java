@@ -33,6 +33,35 @@ public class StateSynchronizer {
     public void setOnGameStartCallback(Runnable callback) {
         this.onGameStartCallback = callback;
     }
+    public void syncMyHp(int hp) {
+        // Kirim HP kita saat ini ke musuh
+        net.sendMessage(Constants.MSG_SYNC_HP, String.valueOf(hp));
+    }
+
+    public void handleRemoteHpSync(String data) {
+        synchronized (lock) {
+            if (gameState == null || gameState.getEnemy() == null) return;
+            try {
+                int remoteHp = Integer.parseInt(data);
+                // Update HP Musuh di layar kita sesuai laporan musuh
+                // Kita "memaksa" set HP musuh (bukan mengurangi damage) agar sinkron
+                setEnemyHpDirectly(remoteHp);
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private void setEnemyHpDirectly(int hp) {
+        if (gameState.getEnemy() != null) {
+            // Kita akses field HP lewat method khusus atau hack sedikit
+            // Cara bersih: tambahkan method setHp di GameCharacter, tapi
+            // disini kita simulasi damage agar HP pas.
+            int current = gameState.getEnemy().getHp();
+            int diff = current - hp;
+            if (diff > 0) {
+                gameState.getEnemy().takeDamage(diff); // Kurangi selisihnya
+            }
+        }
+    }
 
     public void syncPause() { net.sendMessage(Constants.MSG_PAUSE, "STOP"); }
     public void handleRemotePause() { if (presenter != null) presenter.pauseGame(true); }
@@ -118,7 +147,6 @@ public class StateSynchronizer {
         }).start();
     }
 
-    public void syncDamage(int damage) { net.sendMessage(Constants.MSG_DAMAGE, String.valueOf(damage)); }
     public void handleRemoteDamage(String data) {
         synchronized (lock) {
             if (gameState == null || gameState.getPlayer() == null) return;
