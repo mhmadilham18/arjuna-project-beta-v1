@@ -7,6 +7,6 @@ public class Enemy extends GameCharacter {
 
     public Enemy(CharacterType type, String name) {
         super(type, name, false);
-        this.x = Constants.SCREEN_WIDTH - 200;
+        this.x = Constants.SCREEN_WIDTH - 180;
     }
 }

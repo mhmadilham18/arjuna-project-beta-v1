@@ -2,11 +2,12 @@ package util;
 
 import javax.sound.sampled.*;
 import java.io.File;
+import java.util.Random;
 
 public class AudioPlayer {
     private static AudioPlayer instance;
-    // Path ini relatif terhadap folder project (tempat file src berada)
     private String basePath = "src/assets/audio/";
+    private Random random = new Random(); // Untuk acak suara
 
     private AudioPlayer() {}
 
@@ -19,25 +20,15 @@ public class AudioPlayer {
         new Thread(() -> {
             try {
                 File f = new File(basePath + filename);
-                if (!f.exists()) {
-                    System.err.println("[AUDIO ERROR] File not found: " + f.getAbsolutePath());
-                    return;
-                }
-
-                System.out.println("[AUDIO] Playing BGM: " + filename);
+                if (!f.exists()) return;
                 AudioInputStream audioIn = AudioSystem.getAudioInputStream(f);
                 Clip clip = AudioSystem.getClip();
                 clip.open(audioIn);
-
-                // Volume Control (Opsional: Mengecilkan suara BGM sedikit)
                 FloatControl gainControl = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
-                gainControl.setValue(-10.0f); // Kurangi 10 decibel agar tidak terlalu keras
-
+                gainControl.setValue(-10.0f);
                 clip.loop(Clip.LOOP_CONTINUOUSLY);
                 clip.start();
-            } catch (Exception e) {
-                System.err.println("[AUDIO ERROR] " + e.getMessage());
-            }
+            } catch (Exception e) { e.printStackTrace(); }
         }).start();
     }
 
@@ -46,18 +37,23 @@ public class AudioPlayer {
             try {
                 File f = new File(basePath + filename);
                 if (!f.exists()) {
-                    // Jangan spam error jika file memang belum ada
-                    // System.err.println("SFX not found: " + filename);
+                     System.err.println("File audio tidak ditemukan: " + filename);
                     return;
                 }
-
                 AudioInputStream audioIn = AudioSystem.getAudioInputStream(f);
                 Clip clip = AudioSystem.getClip();
                 clip.open(audioIn);
                 clip.start();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            } catch (Exception e) { e.printStackTrace(); }
         }).start();
+    }
+
+    // NEW: Metode untuk suara sakit acak
+    public void playRandomHitSound() {
+        if (random.nextBoolean()) {
+            playSFX("aw.wav");
+        } else {
+            playSFX("aduh_sakitnya.wav");
+        }
     }
 }

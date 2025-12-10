@@ -21,7 +21,7 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
 
     private Timer gameLoopTimer;
     private Timer autoShootTimer;
-    private Timer voiceOverTimer; // NEW
+    // VoiceOver timer dihapus sesuai permintaan sebelumnya
 
     private boolean isPaused = false;
     private boolean isRemotePause = false;
@@ -31,6 +31,7 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
         sync.setGameState(gameState);
         sync.setPresenter(this);
         sync.setOnGameStartCallback(this::onGameStartConfirmed);
+
         AssetLoader.getInstance().loadAllAssets();
         net.addListener(this);
     }
@@ -102,14 +103,6 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
             if (gameState.getState() == Constants.STATE_PLAYING) performAutoShoot();
         });
         autoShootTimer.start();
-
-        // Voice Over Timer (5 detik)
-        voiceOverTimer = new Timer(5000, e -> {
-            if (isPaused || player == null || player.isDead()) return;
-            String sound = (player.getType() == CharacterType.CAKIL) ? "cakil_sound.wav" : "gareng_sound.wav";
-            AudioPlayer.getInstance().playSFX(sound);
-        });
-        voiceOverTimer.start();
     }
 
     // --- PAUSE SYSTEM ---
@@ -128,9 +121,11 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
         isRemotePause = fromRemote;
         if (gameLoopTimer != null) gameLoopTimer.stop();
         if (autoShootTimer != null) autoShootTimer.stop();
-        if (voiceOverTimer != null) voiceOverTimer.stop();
 
-        if (fromRemote) showSkillNotification("Lawan sedang merapal mantra...");
+        if (fromRemote) {
+            showSkillNotification("Lawan sedang merapal mantra...");
+            AudioPlayer.getInstance().playSFX("berhenti_jangan_lanjut.wav");
+        }
     }
 
     public void resumeGame() {
@@ -138,16 +133,19 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
         isRemotePause = false;
         if (gameLoopTimer != null) gameLoopTimer.start();
         if (autoShootTimer != null) autoShootTimer.start();
-        if (voiceOverTimer != null) voiceOverTimer.start();
         view.startGameDisplay();
     }
 
     private void stopGame() {
         if (gameLoopTimer != null) gameLoopTimer.stop();
         if (autoShootTimer != null) autoShootTimer.stop();
-        if (voiceOverTimer != null) voiceOverTimer.stop();
+
         String winner = gameState.getWinner();
         boolean isWinner = winner != null && player != null && winner.equals(player.getType().name());
+
+        if (isWinner) AudioPlayer.getInstance().playSFX("winner.wav");
+        else AudioPlayer.getInstance().playSFX("lose.wav");
+
         view.showResult(winner, isWinner);
     }
 
@@ -162,20 +160,26 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
         if (index < 0 || index >= skills.size()) return;
 
         Skill s = skills.get(index);
+
         if (!player.consumeSukma(s.getSukmaCost())) {
             showSkillNotification("Sukma Tidak Cukup!");
             return;
         }
 
-        view.repaintGame();
-
+        view.repaintGame(); // Update UI Sukma
         startLocalPause(); // Freeze Game
         view.showQuiz(player, s);
     }
 
     public void applySkill(GameCharacter c, Skill s, boolean sendSync) {
         AudioPlayer.getInstance().playSFX("skill_ok.wav");
-        String notifText = "";
+
+        if (c.isPlayer()) {
+            if (c.getType() == CharacterType.CAKIL) AudioPlayer.getInstance().playSFX("cakil_sound.wav");
+            else AudioPlayer.getInstance().playSFX("gareng_sound.wav");
+        }
+
+        // --- MODIFIKASI: Kirim Nama Skill ---
 
         switch (s.getType()) {
             case ATTACK:
@@ -183,43 +187,40 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
                 Projectile p = new Projectile(c.getX(), c.getY() + 40, c.getLane(), Constants.PROJECTILE_SPEED + 5, dmg, true, c.getProjectileImage());
                 gameState.addProjectile(p);
                 if (sendSync) sync.syncSkillAttack(c.getLane(), dmg);
-                notifText = "Skill Serangan! +" + dmg + " DMG";
                 break;
+
             case DEFENCE:
             case BUFF:
                 int dur = (int)(s.getBuffDurationMillis()/1000);
                 if (s.isImmuneDamage()) {
                     c.setImmuneDamage(true);
-                    if (sendSync) sync.syncSkillActivate(s.getId(), "Immune", dur);
-                    notifText = "KEBAL " + dur + " Detik!";
+                    // Kirim NAMA SKILL (s.getName())
+                    if (sendSync) sync.syncSkillActivate(s.getId(), s.getName(), "Immune", dur);
                 }
                 if (s.getAttackMultiplier() > 1.0) {
                     c.setAttackMultiplier(s.getAttackMultiplier());
                     String key = s.getAttackMultiplier() == 1.3 ? "ATK30" : "ATK50";
-                    if (sendSync) sync.syncSkillActivate(s.getId(), key, dur);
-                    notifText = "ATK +" + (s.getAttackMultiplier()==1.3?"30%":"50%");
+                    if (sendSync) sync.syncSkillActivate(s.getId(), s.getName(), key, dur);
                 }
                 if (s.getAttackSpeedMultiplier() > 1.0) {
                     c.setAttackSpeedMultiplier(s.getAttackSpeedMultiplier());
-                    if (sendSync) sync.syncSkillActivate(s.getId(), "ATKSPD30", dur);
-                    notifText = "Speed +30%";
+                    if (sendSync) sync.syncSkillActivate(s.getId(), s.getName(), "ATKSPD30", dur);
                 }
                 scheduleBuffExpiration(c, s, dur);
                 break;
         }
 
-        showSkillNotification(notifText);
+        // Tampilkan Nama Skill secara Lokal
+        showSkillNotification(s.getName() + " Aktif!");
     }
 
     private void scheduleBuffExpiration(GameCharacter c, Skill s, int durationSec) {
         new Thread(() -> {
             try {
                 Thread.sleep(durationSec * 1000L);
-                // Reset stats
                 c.setImmuneDamage(false);
                 c.setAttackMultiplier(1.0);
                 c.setAttackSpeedMultiplier(1.0);
-                // Trigger repaint untuk update visual
                 SwingUtilities.invokeLater(view::repaintGame);
             } catch (InterruptedException ignored) {}
         }).start();
