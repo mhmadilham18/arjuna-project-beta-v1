@@ -106,6 +106,9 @@ public class GameCharacter {
         this.sukma = Math.min(MAX_SUKMA, this.sukma + amount);
     }
 
+    public void setHp(int hp) { this.hp = hp; }
+    public void setSukma(int sukma) { this.sukma = sukma; }
+
     public boolean isDead() { return hp <= 0; }
 
     // --- Getters & Setters ---
