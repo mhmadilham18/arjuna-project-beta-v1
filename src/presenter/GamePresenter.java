@@ -276,7 +276,7 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
             case Constants.MSG_MOVE: sync.handleRemoteMove(data); break;
             case Constants.MSG_SHOOT: sync.handleRemoteShoot(data); break;
             case Constants.MSG_SKILL_ATTACK: sync.handleRemoteSkillAttack(data); break;
-            case Constants.MSG_DAMAGE: sync.handleRemoteDamage(data); break;
+            case Constants.MSG_SYNC_HP: sync.handleRemoteHpSync(data); break;
             case Constants.MSG_SKILL_ACTIVATE: sync.handleRemoteSkillActivate(data); break;
             case Constants.MSG_GAME_OVER: sync.handleGameOver(data); break;
             case Constants.MSG_PAUSE: sync.handleRemotePause(); break;
