@@ -53,7 +53,7 @@ public class GameCharacter {
 
     public void update() {
         long now = System.currentTimeMillis();
-        if (sukma < MAX_SUKMA && now - lastSukmaRecharge >= 3000) {
+        if (sukma < MAX_SUKMA && now - lastSukmaRecharge >= 5000) {
             sukma = Math.min(MAX_SUKMA, sukma + SUKMA_RECHARGE_RATE);
             lastSukmaRecharge = now;
         }
