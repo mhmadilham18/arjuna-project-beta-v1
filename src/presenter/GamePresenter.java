@@ -167,6 +167,8 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
             return;
         }
 
+        view.repaintGame();
+
         startLocalPause(); // Freeze Game
         view.showQuiz(player, s);
     }
@@ -202,9 +204,25 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
                     if (sendSync) sync.syncSkillActivate(s.getId(), "ATKSPD30", dur);
                     notifText = "Speed +30%";
                 }
+                scheduleBuffExpiration(c, s, dur);
                 break;
         }
+
         showSkillNotification(notifText);
+    }
+
+    private void scheduleBuffExpiration(GameCharacter c, Skill s, int durationSec) {
+        new Thread(() -> {
+            try {
+                Thread.sleep(durationSec * 1000L);
+                // Reset stats
+                c.setImmuneDamage(false);
+                c.setAttackMultiplier(1.0);
+                c.setAttackSpeedMultiplier(1.0);
+                // Trigger repaint untuk update visual
+                SwingUtilities.invokeLater(view::repaintGame);
+            } catch (InterruptedException ignored) {}
+        }).start();
     }
 
     public void showSkillNotification(String text) {

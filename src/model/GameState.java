@@ -7,13 +7,13 @@ import util.Constants;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class GameState {
 
     private Player player;
     private Enemy enemy;
-    private final List<Projectile> projectiles = new ArrayList<>();
-
+    private final List<Projectile> projectiles = new CopyOnWriteArrayList<>();
     private String winner;
     private int state = Constants.STATE_LOADING;
 
