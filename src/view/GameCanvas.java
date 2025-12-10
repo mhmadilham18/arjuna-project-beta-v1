@@ -20,7 +20,6 @@ public class GameCanvas extends JPanel implements KeyListener {
         setPreferredSize(new Dimension(Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT));
         setBackground(Color.BLACK);
         setFocusable(true);
-        // Penting: requestFocus dipanggil di GameWindow saat switch card
         addKeyListener(this);
     }
 
@@ -31,7 +30,6 @@ public class GameCanvas extends JPanel implements KeyListener {
 
     @Override
     public void keyPressed(KeyEvent e) {
-        // Kontrol hanya bekerja jika panel ini punya fokus
         switch (e.getKeyCode()) {
             case KeyEvent.VK_UP:    presenter.onMoveUp(); break;
             case KeyEvent.VK_DOWN:  presenter.onMoveDown(); break;
@@ -51,16 +49,34 @@ public class GameCanvas extends JPanel implements KeyListener {
         GameCharacter p = s.getPlayer();
         GameCharacter e = s.getEnemy();
 
-        if (p != null) g.drawImage(p.getCurrentImage(), p.getX(), p.getY(), 120, 120, null);
-        if (e != null) g.drawImage(e.getCurrentImage(), e.getX(), e.getY(), 120, 120, null);
+        // --- GAMBAR PLAYER (KIRI, Hadap Kanan) ---
+        if (p != null) {
+            // Gambar normal
+            g.drawImage(p.getCurrentImage(), p.getX(), p.getY(), 120, 120, null);
+        }
 
+        // --- GAMBAR ENEMY (KANAN, Hadap Kiri) ---
+        if (e != null) {
+            // Logika Flip: Kita gambar dari titik X+Lebar mundur ke kiri
+            // Syntax: drawImage(img, x, y, width, height, observer)
+            // Jika width negatif, gambar akan terbalik
+            g.drawImage(e.getCurrentImage(),
+                    e.getX() + 120, e.getY(), // Posisi X digeser sejauh lebar gambar
+                    -120, 120,                // Lebar dibuat NEGATIF agar membalik
+                    null);
+        }
+
+        // --- PROJECTILES ---
         for (Projectile pr : presenter.getProjectiles()) {
-            // FIX: Gambar Projectile menggunakan Image, bukan fillRect
-            if (pr.getImage() != null) {
-                // Ukuran projectile disesuaikan, misal 60x20
-                g.drawImage(pr.getImage(), pr.getX(), pr.getY(), 60, 20, null);
+            Image projImg = pr.getImage();
+            if (projImg != null) {
+                // Jika projectile dari musuh, kita flip juga agar arah apinya sesuai
+                if (!pr.isFromPlayer()) {
+                    g.drawImage(projImg, pr.getX() + 60, pr.getY(), -60, 20, null);
+                } else {
+                    g.drawImage(projImg, pr.getX(), pr.getY(), 60, 20, null);
+                }
             } else {
-                // Fallback jika gambar gagal load
                 g.setColor(pr.isFromPlayer() ? Color.RED : Color.YELLOW);
                 g.fillRect(pr.getX(), pr.getY(), 20, 8);
             }
