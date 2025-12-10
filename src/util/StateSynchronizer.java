@@ -11,8 +11,6 @@ public class StateSynchronizer {
     private final Object lock = new Object();
     private GameState gameState;
     private final NetworkManager net = NetworkManager.getInstance();
-
-    // Callback untuk memberitahu presenter game mulai
     private Runnable onGameStartCallback;
 
     private StateSynchronizer() {}
@@ -35,12 +33,6 @@ public class StateSynchronizer {
         net.sendMessage(Constants.MSG_GAME_START, "GO");
     }
 
-    public void handleRemoteGameStart() {
-        if (onGameStartCallback != null) {
-            onGameStartCallback.run();
-        }
-    }
-
     // --- MOVEMENT ---
     public void syncPlayerMove(int lane) {
         net.sendMessage(Constants.MSG_MOVE, String.valueOf(lane));
@@ -57,50 +49,44 @@ public class StateSynchronizer {
         }
     }
 
-    // --- SHOOTING (Auto) ---
+    // --- SHOOTING ---
     public void syncShoot(int lane, int damage) {
         net.sendMessage(Constants.MSG_SHOOT, lane + "," + damage);
     }
 
     public void handleRemoteShoot(String data) {
-        synchronized (lock) {
-            if (gameState == null || gameState.getEnemy() == null) return;
-            try {
-                String[] parts = data.split(",");
-                int lane = Integer.parseInt(parts[0]);
-                int dmg = Integer.parseInt(parts[1]);
-                spawnEnemyProjectile(lane, dmg, false); // Normal projectile
-            } catch (Exception ignored) {}
-        }
+        spawnRemoteProjectile(data, false);
     }
 
-    // --- SKILL ATTACK ---
     public void syncSkillAttack(int lane, int damage) {
         net.sendMessage(Constants.MSG_SKILL_ATTACK, lane + "," + damage);
     }
 
     public void handleRemoteSkillAttack(String data) {
+        spawnRemoteProjectile(data, true);
+    }
+
+    private void spawnRemoteProjectile(String data, boolean isSkill) {
         synchronized (lock) {
             if (gameState == null || gameState.getEnemy() == null) return;
             try {
                 String[] parts = data.split(",");
                 int lane = Integer.parseInt(parts[0]);
                 int dmg = Integer.parseInt(parts[1]);
-                spawnEnemyProjectile(lane, dmg, true); // Skill projectile (maybe different visual?)
+
+                Enemy enemy = gameState.getEnemy();
+                // FIX: Posisi spawn Y + 40
+                Projectile p = new Projectile(
+                        enemy.getX(), enemy.getY() + 40, lane,
+                        Constants.PROJECTILE_SPEED, dmg, false,
+                        enemy.getProjectileImage()
+                );
+                gameState.addProjectile(p);
             } catch (Exception ignored) {}
         }
     }
 
-    private void spawnEnemyProjectile(int lane, int damage, boolean isSkill) {
-        Enemy enemy = gameState.getEnemy();
-        Projectile p = new Projectile(
-                enemy.getX(), enemy.getY(), lane, Constants.PROJECTILE_SPEED,
-                damage, false, enemy.getProjectileImage()
-        );
-        gameState.addProjectile(p);
-    }
-
-    // --- SKILL BUFF/DEFENCE ---
+    // --- SKILLS ---
     public void syncSkillActivate(int skillIndex, String effectKey, int durationSec) {
         net.sendMessage(Constants.MSG_SKILL_ACTIVATE, skillIndex + "," + effectKey + "," + durationSec);
     }
@@ -118,13 +104,11 @@ public class StateSynchronizer {
     }
 
     private void applySkillEffect(GameCharacter c, String effect, int durationSec) {
-        // Logika visual sederhana
         if (effect.equals("Immune")) c.setImmuneDamage(true);
         else if (effect.equals("ATKSPD30")) c.setAttackSpeedMultiplier(1.3);
         else if (effect.equals("ATK30")) c.setAttackMultiplier(1.3);
         else if (effect.equals("ATK50")) c.setAttackMultiplier(1.5);
 
-        // Matikan efek setelah durasi (Thread terpisah)
         new Thread(() -> {
             try {
                 Thread.sleep(durationSec * 1000L);

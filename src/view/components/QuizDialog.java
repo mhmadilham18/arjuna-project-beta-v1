@@ -5,9 +5,12 @@ import model.data.QuizQuestion;
 import model.data.Skill;
 import model.entities.GameCharacter;
 import presenter.GamePresenter;
+import util.AssetLoader;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 public class QuizDialog extends JDialog {
 
@@ -17,32 +20,77 @@ public class QuizDialog extends JDialog {
     private final QuizQuestion question;
 
     public QuizDialog(Frame owner, GamePresenter presenter, GameCharacter character, Skill skill) {
-        super(owner, "Rapal Mantra (Quiz)", true); // Modal true = pause game click
-
+        super(owner, "Rapal Mantra (Quiz)", true); // Modal
         this.presenter = presenter;
         this.character = character;
         this.skill = skill;
         this.question = QuizDatabase.getInstance().getRandom(character.getType());
 
-        setSize(600, 350);
+        setSize(600, 400);
         setLocationRelativeTo(owner);
-        setLayout(new GridLayout(5, 1, 10, 10));
+        // Hilangkan layout default konten pane agar bisa custom background
+        setContentPane(new BackgroundPanel());
+        setLayout(new GridBagLayout()); // Gunakan GridBag agar rapi di tengah background
 
-        if (question == null) { dispose(); return; }
+        if (question == null) {
+            presenter.resumeGame();
+            dispose();
+            return;
+        }
 
-        JLabel qLabel = new JLabel("<html><center>" + question.getQuestion() + "</center></html>", SwingConstants.CENTER);
-        qLabel.setFont(new Font("Dialog", Font.BOLD, 14));
-        add(qLabel);
+        initUI();
 
-        add(createButton("A. " + question.getOptionA(), 'A'));
-        add(createButton("B. " + question.getOptionB(), 'B'));
-        add(createButton("C. " + question.getOptionC(), 'C'));
+        // Handle jika user menutup paksa (X)
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                character.addSukma(skill.getSukmaCost()); // Refund sukma
+                presenter.resumeGame();
+            }
+        });
 
         setVisible(true);
     }
 
+    private void initUI() {
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 0;
+
+        // Pertanyaan
+        JLabel qLabel = new JLabel("<html><div style='text-align: center; color: white;'>" + question.getQuestion() + "</div></html>", SwingConstants.CENTER);
+        qLabel.setFont(new Font("Serif", Font.BOLD, 20));
+        qLabel.setOpaque(false);
+
+        gbc.gridy = 0;
+        add(qLabel, gbc);
+
+        // Tombol
+        gbc.gridy = 1; add(createButton("A. " + question.getOptionA(), 'A'), gbc);
+        gbc.gridy = 2; add(createButton("B. " + question.getOptionB(), 'B'), gbc);
+        gbc.gridy = 3; add(createButton("C. " + question.getOptionC(), 'C'), gbc);
+    }
+
+    // Panel khusus background
+    private class BackgroundPanel extends JPanel {
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Image bg = AssetLoader.getInstance().getQuizBackground();
+            if (bg != null) {
+                g.drawImage(bg, 0, 0, getWidth(), getHeight(), null);
+            } else {
+                g.setColor(new Color(40, 0, 0));
+                g.fillRect(0, 0, getWidth(), getHeight());
+            }
+        }
+    }
+
     private JButton createButton(String text, char ans) {
         JButton btn = new JButton(text);
+        btn.setFont(new Font("Dialog", Font.BOLD, 16));
+        btn.setBackground(new Color(255, 255, 200));
         btn.addActionListener(e -> submitAnswer(ans));
         return btn;
     }
@@ -57,6 +105,9 @@ public class QuizDialog extends JDialog {
             JOptionPane.showMessageDialog(this, "Mantra Gagal... Sukma dikembalikan.");
             character.addSukma(skill.getSukmaCost());
         }
+
+        // PENTING: Resume game setelah dialog tutup
+        presenter.resumeGame();
         dispose();
     }
 }

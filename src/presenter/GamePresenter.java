@@ -21,6 +21,7 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
 
     private Timer gameLoopTimer;
     private Timer autoShootTimer;
+    private boolean isPaused = false;
 
     public GamePresenter(GameContract.View view) {
         this.view = view;
@@ -29,7 +30,6 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
 
         // Load Assets di awal
         AssetLoader.getInstance().loadAllAssets();
-
         net.addListener(this);
     }
 
@@ -38,7 +38,6 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
         try {
             net.startServer(port);
             setupCharacters(playerName, true);
-            // Jangan langsung start loop, tunggu client connect
         } catch (Exception e) { e.printStackTrace(); }
     }
 
@@ -47,7 +46,6 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
         try {
             net.connectToServer(host, port);
             setupCharacters(playerName, false);
-            // Client menunggu sinyal START dari server
         } catch (Exception e) { e.printStackTrace(); }
     }
 
@@ -60,6 +58,7 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
 
         // Setup Images
         AssetLoader al = AssetLoader.getInstance();
+        // Load image logic (Sama seperti sebelumnya)
         player.setNormalImage(myChar == CharacterType.CAKIL ? al.getCakilNormal() : al.getSabrangNormal());
         player.setBuffedImage(myChar == CharacterType.CAKIL ? al.getCakilBuffed() : al.getSabrangBuffed());
         player.setDamagedImage(myChar == CharacterType.CAKIL ? al.getCakilDamaged() : al.getSabrangDamaged());
@@ -78,21 +77,24 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
         gameState.setState(Constants.STATE_LOADING);
     }
 
-    // Dipanggil ketika kedua pemain siap
     private void onGameStartConfirmed() {
+        // Mencegah double start
         if (gameState.getState() == Constants.STATE_PLAYING) return;
 
-        gameState.setState(Constants.STATE_PLAYING);
-        view.startGameDisplay();
-
-        AudioPlayer.getInstance().playBGM("bgm.wav"); // Play Music
-
-        startGameLoops();
+        // Pastikan dijalankan di Thread UI agar aman
+        SwingUtilities.invokeLater(() -> {
+            gameState.setState(Constants.STATE_PLAYING);
+            view.startGameDisplay();
+            AudioPlayer.getInstance().playBGM("bgm.wav");
+            startGameLoops();
+        });
     }
 
     private void startGameLoops() {
         // 1. Main Game Loop (Movement & Update) - 60 FPS
         gameLoopTimer = new Timer(16, e -> {
+            if (isPaused) return; // Cek pause
+
             if (gameState.getState() == Constants.STATE_GAME_OVER) {
                 stopGame();
                 return;
@@ -105,11 +107,28 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
 
         // 2. Auto Shoot Timer (3x per detik = ~333ms)
         autoShootTimer = new Timer(333, e -> {
+            if (isPaused) return; // Cek pause
+
             if (gameState.getState() == Constants.STATE_PLAYING) {
                 performAutoShoot();
             }
         });
         autoShootTimer.start();
+    }
+
+    // --- PAUSE & RESUME SYSTEM ---
+    public void pauseGame() {
+        isPaused = true;
+        if (gameLoopTimer != null) gameLoopTimer.stop();
+        if (autoShootTimer != null) autoShootTimer.stop();
+    }
+
+    public void resumeGame() {
+        isPaused = false;
+        if (gameLoopTimer != null) gameLoopTimer.start();
+        if (autoShootTimer != null) autoShootTimer.start();
+        // Kembalikan fokus ke game canvas lewat view
+        view.startGameDisplay();
     }
 
     private void stopGame() {
@@ -128,70 +147,68 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
     }
 
     // --- CONTROLS ---
-
     @Override
     public void onMoveUp() {
-        if (player == null) return;
+        if (player == null || isPaused) return;
         player.moveUp();
         sync.syncPlayerMove(player.getLane());
     }
 
     @Override
     public void onMoveDown() {
-        if (player == null) return;
+        if (player == null || isPaused) return;
         player.moveDown();
         sync.syncPlayerMove(player.getLane());
     }
 
-    // Auto shoot logic
     private void performAutoShoot() {
         if (player == null || player.isDead()) return;
 
+        // FIX: Posisi Spawn (Y + 40) agar keluar dari tengah badan/tangan
+        int spawnY = player.getY() + 40;
+
         Projectile p = new Projectile(
-                player.getX(), player.getY(), player.getLane(),
+                player.getX(), spawnY, player.getLane(),
                 Constants.PROJECTILE_SPEED, player.getCurrentDamage(),
                 true, player.getProjectileImage()
         );
         gameState.addProjectile(p);
-        AudioPlayer.getInstance().playSFX("shoot.wav"); // SFX
+        AudioPlayer.getInstance().playSFX("shoot.wav");
         sync.syncShoot(player.getLane(), player.getCurrentDamage());
     }
 
     @Override
     public void onSkill(int index) {
-        if (player == null || player.isDead()) return;
+        if (player == null || player.isDead() || isPaused) return;
         List<Skill> skills = player.getSkills();
         if (index < 0 || index >= skills.size()) return;
 
         Skill s = skills.get(index);
-
-        // Cek apakah sukma cukup
         if (!player.consumeSukma(s.getSukmaCost())) {
             System.out.println("Sukma tidak cukup!");
             return;
         }
 
-        // Tampilkan Quiz untuk konfirmasi skill
+        // PAUSE GAME SAAT QUIZ MUNCUL
+        pauseGame();
         view.showQuiz(player, s);
     }
 
-    // Dipanggil dari QuizDialog jika jawaban BENAR
     public void applySkill(GameCharacter c, Skill s, boolean sendSync) {
         AudioPlayer.getInstance().playSFX("skill_ok.wav");
 
         switch (s.getType()) {
             case ATTACK:
-                // Skill Attack: Tembakan khusus yang lebih kuat
                 int dmg = s.getDamage() + (int)(c.getBaseAttack() * 0.1);
+                // Skill projectile spawn di tengah juga
                 Projectile skillProj = new Projectile(
-                        c.getX(), c.getY(), c.getLane(),
-                        Constants.PROJECTILE_SPEED + 5, // Lebih cepat
+                        c.getX(), c.getY() + 40, c.getLane(),
+                        Constants.PROJECTILE_SPEED + 5,
                         dmg, true, c.getProjectileImage()
                 );
                 gameState.addProjectile(skillProj);
                 if (sendSync) sync.syncSkillAttack(c.getLane(), dmg);
                 break;
-
             case DEFENCE:
             case BUFF:
                 if (s.isImmuneDamage()) {
@@ -223,14 +240,15 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
         switch (type) {
             case Constants.MSG_PLAYER_JOINED:
                 if (net.isServer()) {
-                    // Server kirim sinyal START ke client
-                    sync.syncGameStart();
-                    // Server mulai game sendiri
-                    onGameStartConfirmed();
+                    // FIX: Beri delay 1 detik agar Client siap menerima pesan START
+                    new Thread(() -> {
+                        try { Thread.sleep(1000); } catch (InterruptedException e) {}
+                        sync.syncGameStart(); // Kirim ke client
+                        onGameStartConfirmed(); // Start server sendiri
+                    }).start();
                 }
                 break;
             case Constants.MSG_GAME_START:
-                // Client terima sinyal START
                 onGameStartConfirmed();
                 break;
             case Constants.MSG_MOVE:           sync.handleRemoteMove(data); break;

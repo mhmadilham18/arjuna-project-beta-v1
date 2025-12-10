@@ -17,47 +17,30 @@ public class GameCanvas extends JPanel implements KeyListener {
 
     public GameCanvas(GamePresenter presenter) {
         this.presenter = presenter;
-
         setPreferredSize(new Dimension(Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT));
         setBackground(Color.BLACK);
-
         setFocusable(true);
-        requestFocusInWindow();
-
-        // register key listener
+        // Penting: requestFocus dipanggil di GameWindow saat switch card
         addKeyListener(this);
     }
 
     @Override
     public void keyTyped(KeyEvent e) {}
-
     @Override
     public void keyReleased(KeyEvent e) {}
 
     @Override
     public void keyPressed(KeyEvent e) {
+        // Kontrol hanya bekerja jika panel ini punya fokus
         switch (e.getKeyCode()) {
-            case KeyEvent.VK_UP:
-                presenter.onMoveUp();
-                break;
-            case KeyEvent.VK_DOWN:
-                presenter.onMoveDown();
-                break;
-            case KeyEvent.VK_1:
-                presenter.onSkill(0);
-                break;
-            case KeyEvent.VK_2:
-                presenter.onSkill(1);
-                break;
-            case KeyEvent.VK_3:
-                presenter.onSkill(2);
-                break;
+            case KeyEvent.VK_UP:    presenter.onMoveUp(); break;
+            case KeyEvent.VK_DOWN:  presenter.onMoveDown(); break;
+            case KeyEvent.VK_1:     presenter.onSkill(0); break;
+            case KeyEvent.VK_2:     presenter.onSkill(1); break;
+            case KeyEvent.VK_3:     presenter.onSkill(2); break;
         }
     }
 
-    // -------------------------------
-    // PAINT GAME
-    // -------------------------------
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -68,17 +51,19 @@ public class GameCanvas extends JPanel implements KeyListener {
         GameCharacter p = s.getPlayer();
         GameCharacter e = s.getEnemy();
 
-        if (p != null) {
-            g.drawImage(p.getCurrentImage(), p.getX(), p.getY(), 120, 120, null);
-        }
-
-        if (e != null) {
-            g.drawImage(e.getCurrentImage(), e.getX(), e.getY(), 120, 120, null);
-        }
+        if (p != null) g.drawImage(p.getCurrentImage(), p.getX(), p.getY(), 120, 120, null);
+        if (e != null) g.drawImage(e.getCurrentImage(), e.getX(), e.getY(), 120, 120, null);
 
         for (Projectile pr : presenter.getProjectiles()) {
-            g.setColor(pr.isFromPlayer() ? Color.RED : Color.YELLOW);
-            g.fillRect(pr.getX(), pr.getY(), 20, 8);
+            // FIX: Gambar Projectile menggunakan Image, bukan fillRect
+            if (pr.getImage() != null) {
+                // Ukuran projectile disesuaikan, misal 60x20
+                g.drawImage(pr.getImage(), pr.getX(), pr.getY(), 60, 20, null);
+            } else {
+                // Fallback jika gambar gagal load
+                g.setColor(pr.isFromPlayer() ? Color.RED : Color.YELLOW);
+                g.fillRect(pr.getX(), pr.getY(), 20, 8);
+            }
         }
     }
 }

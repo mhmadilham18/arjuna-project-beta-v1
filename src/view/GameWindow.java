@@ -45,7 +45,6 @@ public class GameWindow extends JFrame {
 
         add(mainContainer);
 
-        // Start Network Logic
         if (isServer) {
             showWaiting("Menunggu koneksi Player 2...");
             presenter.startGameAsServer(playerName, 5000);
@@ -62,11 +61,10 @@ public class GameWindow extends JFrame {
         cardLayout.show(mainContainer, "WAITING");
     }
 
-    // Dipanggil oleh Presenter saat game benar-benar mulai
     public void startGame() {
         cardLayout.show(mainContainer, "GAME");
+        // FIX: Request Focus agar keyboard langsung jalan
         canvas.requestFocusInWindow();
-        addKeyListener(canvas); // Pindahkan listener ke frame/canvas aktif
     }
 
     private class viewAdapter implements presenter.GameContract.View {
@@ -75,7 +73,6 @@ public class GameWindow extends JFrame {
 
         @Override
         public void showQuiz(GameCharacter self, Skill skill) {
-            // Gunakan invokeLater agar tidak memblokir render thread secara kasar
             SwingUtilities.invokeLater(() ->
                     new QuizDialog(GameWindow.this, presenter, self, skill)
             );
@@ -96,6 +93,7 @@ public class GameWindow extends JFrame {
 
         @Override
         public void startGameDisplay() {
+            // Dipanggil saat game mulai ATAU resume dari pause
             GameWindow.this.startGame();
         }
     }
