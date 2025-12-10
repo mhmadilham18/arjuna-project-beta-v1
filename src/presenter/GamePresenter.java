@@ -93,7 +93,11 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
         gameLoopTimer = new Timer(16, e -> {
             if (isPaused) return;
             if (gameState.getState() == Constants.STATE_GAME_OVER) { stopGame(); return; }
+            int oldSukma = player.getSukma();
             gameState.update();
+            if (player.getSukma() != oldSukma) {
+                sync.syncMySukma(player.getSukma());
+            }
             view.repaintGame();
             checkGameOver();
         });
@@ -171,6 +175,8 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
             showSkillNotification("Sukma Tidak Cukup!");
             return;
         }
+
+        sync.syncMySukma(player.getSukma());
 
         view.repaintGame();
         startLocalPause();
@@ -281,6 +287,7 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
             case Constants.MSG_GAME_OVER: sync.handleGameOver(data); break;
             case Constants.MSG_PAUSE: sync.handleRemotePause(); break;
             case Constants.MSG_RESUME: sync.handleRemoteResume(); break;
+            case Constants.MSG_SYNC_SUKMA: sync.handleRemoteSukmaSync(data); break;
         }
     }
 }

@@ -32,5 +32,6 @@ public class Constants {
     public static final String MSG_RESUME         = "RESUME";
     public static final String MSG_SYNC_HP        = "SYNC_HP";
     public static final String MSG_DAMAGE         = "DMG_DEPRECATED";
+    public static final String MSG_SYNC_SUKMA     = "SYNC_SUKMA";
 
 }

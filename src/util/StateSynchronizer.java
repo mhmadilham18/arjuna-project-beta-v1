@@ -43,9 +43,23 @@ public class StateSynchronizer {
             if (gameState == null || gameState.getEnemy() == null) return;
             try {
                 int remoteHp = Integer.parseInt(data);
-                // Update HP Musuh di layar kita sesuai laporan musuh
-                // Kita "memaksa" set HP musuh (bukan mengurangi damage) agar sinkron
-                setEnemyHpDirectly(remoteHp);
+                // Update HP Musuh di layar kita menggunakan Setter
+                gameState.getEnemy().setHp(remoteHp);
+            } catch (Exception ignored) {}
+        }
+    }
+
+    public void syncMySukma(int sukma) {
+        net.sendMessage(Constants.MSG_SYNC_SUKMA, String.valueOf(sukma));
+    }
+
+    public void handleRemoteSukmaSync(String data) {
+        synchronized (lock) {
+            if (gameState == null || gameState.getEnemy() == null) return;
+            try {
+                int remoteSukma = Integer.parseInt(data);
+                // Update Sukma Musuh di layar kita
+                gameState.getEnemy().setSukma(remoteSukma);
             } catch (Exception ignored) {}
         }
     }
