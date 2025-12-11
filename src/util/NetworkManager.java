@@ -108,8 +108,17 @@ public class NetworkManager {
             }
             if (out != null) out.close();
             if (in != null) in.close();
-            if (socket != null) socket.close();
-            if (serverSocket != null) serverSocket.close();
+
+
+            if (socket != null && !socket.isClosed()){ 
+                socket.close();
+            }
+            
+            if (isServer && serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+            }
+
+            instance = null;
 
             System.out.println("Disconnected from network");
         } catch (IOException e) {
