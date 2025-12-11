@@ -47,29 +47,21 @@ public class ResultDialog extends JDialog {
             backBtn.setEnabled(false);
             backBtn.setText("Sedang Keluar...");
 
-            // 1. Jalankan perintah disconnect di Thread terpisah (biarkan dia kerja sendiri)
+            // --- FIX: FIRE AND FORGET ---
+            // 1. Matikan jaringan di thread terpisah (biar kerja sendiri)
             new Thread(() -> {
-                NetworkManager.getInstance().disconnect();
+                NetworkManager.getInstance().hardReset();
             }).start();
 
-            // 2. JANGAN MENUNGGU thread di atas selesai.
-            // Gunakan Timer untuk memberi jeda visual sedikit (misal 0.5 detik), lalu paksa pindah.
-            Timer timer = new Timer(500, evt -> {
-                // Tutup Dialog
+            // 2. Langsung paksa tutup dialog dan pindah ke home (tunggu 500ms biar smooth dikit)
+            Timer t = new Timer(500, evt -> {
                 dispose();
-
-                // Tutup GameWindow (Owner)
                 Window w = getOwner();
-                if (w != null) {
-                    w.dispose();
-                }
-
-                // Buka Home Screen Baru
+                if (w != null) w.dispose();
                 new HomeScreen();
             });
-
-            timer.setRepeats(false); // Jalankan sekali saja
-            timer.start();
+            t.setRepeats(false);
+            t.start();
         });
 
         gbc.gridy = 2;

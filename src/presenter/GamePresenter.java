@@ -21,13 +21,19 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
 
     private Timer gameLoopTimer;
     private Timer autoShootTimer;
-    // HAPUS: private Timer voiceOverTimer;  <-- SUDAH DIHAPUS
 
     private boolean isPaused = false;
     private boolean isRemotePause = false;
 
     public GamePresenter(GameContract.View view) {
         this.view = view;
+
+        // --- FIX: RESET STATE SETIAP KALI GAME DIBUAT ---
+        gameState.setState(Constants.STATE_LOADING);
+        gameState.setWinner(null);
+        gameState.getProjectiles().clear();
+        // ------------------------------------------------
+
         sync.setGameState(gameState);
         sync.setPresenter(this);
         sync.setOnGameStartCallback(this::onGameStartConfirmed);
@@ -61,16 +67,15 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
     private void handleConnectionError(String msg) {
         SwingUtilities.invokeLater(() -> {
             JOptionPane.showMessageDialog(null, msg, "Connection Error", JOptionPane.ERROR_MESSAGE);
-            // Tutup window game saat ini
             if (view instanceof javax.swing.JFrame) {
                 ((javax.swing.JFrame) view).dispose();
             }
-            // Kembali ke Home
             new view.HomeScreen();
         });
     }
 
     private void setupCharacters(String playerName, boolean isServer) {
+        // ... (Kode setup karakter sama persis, copy paste saja isinya) ...
         CharacterType myChar = isServer ? CharacterType.CAKIL : CharacterType.PATIH_SABRENG;
         CharacterType enemyChar = isServer ? CharacterType.PATIH_SABRENG : CharacterType.CAKIL;
 
@@ -107,8 +112,6 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
     }
 
     private void startGameLoops() {
-
-
         gameLoopTimer = new Timer(16, e -> {
             if (isPaused) return;
             if (gameState.getState() == Constants.STATE_GAME_OVER) { stopGame(); return; }
@@ -122,43 +125,31 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
         });
         gameLoopTimer.start();
 
-
-
-
         autoShootTimer = new Timer(333, e -> {
             if (isPaused) return;
             if (gameState.getState() == Constants.STATE_PLAYING) performAutoShoot();
         });
         autoShootTimer.start();
-
-        // CATATAN PENTING:
-        // Timer voiceOverTimer SUDAH DIHAPUS DISINI.
-        // Jadi suara tidak akan muncul otomatis setiap 5 detik lagi.
     }
-
     // --- PAUSE SYSTEM ---
     public void startLocalPause() {
         pauseGame(false);
         sync.syncPause();
     }
-
     public void endLocalPause() {
         resumeGame();
         sync.syncResume();
     }
-
     public void pauseGame(boolean fromRemote) {
         isPaused = true;
         isRemotePause = fromRemote;
         if (gameLoopTimer != null) gameLoopTimer.stop();
         if (autoShootTimer != null) autoShootTimer.stop();
-
         if (fromRemote) {
             showSkillNotification("Lawan sedang merapal mantra...");
             AudioPlayer.getInstance().playSFX("berhenti_jangan_lanjut.wav");
         }
     }
-
     public void resumeGame() {
         isPaused = false;
         isRemotePause = false;
@@ -166,53 +157,39 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
         if (autoShootTimer != null) autoShootTimer.start();
         view.startGameDisplay();
     }
-
     private void stopGame() {
         if (gameLoopTimer != null) gameLoopTimer.stop();
         if (autoShootTimer != null) autoShootTimer.stop();
-
         String winner = gameState.getWinner();
         boolean isWinner = winner != null && player != null && winner.equals(player.getType().name());
-
         if (isWinner) AudioPlayer.getInstance().playSFX("winner.wav");
         else AudioPlayer.getInstance().playSFX("lose.wav");
-
         view.showResult(winner, isWinner);
     }
-
     private void checkGameOver() {
         if (gameState.getState() == Constants.STATE_GAME_OVER) stopGame();
     }
-
     @Override
     public void onSkill(int index) {
         if (player == null || player.isDead() || isPaused) return;
         List<Skill> skills = player.getSkills();
         if (index < 0 || index >= skills.size()) return;
-
         Skill s = skills.get(index);
-
         if (!player.consumeSukma(s.getSukmaCost())) {
             showSkillNotification("Sukma Tidak Cukup!");
             return;
         }
-
         sync.syncMySukma(player.getSukma());
-
         view.repaintGame();
         startLocalPause();
         view.showQuiz(player, s);
     }
-
     public void applySkill(GameCharacter c, Skill s, boolean sendSync) {
         AudioPlayer.getInstance().playSFX("skill_ok.wav");
-
-        // SUARA KARAKTER HANYA SAAT SKILL BERHASIL
         if (c.isPlayer()) {
             if (c.getType() == CharacterType.CAKIL) AudioPlayer.getInstance().playSFX("cakil_sound.wav");
             else AudioPlayer.getInstance().playSFX("gareng_sound.wav");
         }
-
         switch (s.getType()) {
             case ATTACK:
                 int dmg = s.getDamage() + (int)(c.getBaseAttack() * 0.1);
@@ -220,7 +197,6 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
                 gameState.addProjectile(p);
                 if (sendSync) sync.syncSkillAttack(c.getLane(), dmg);
                 break;
-
             case DEFENCE:
             case BUFF:
                 int dur = (int)(s.getBuffDurationMillis()/1000);
@@ -240,10 +216,8 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
                 scheduleBuffExpiration(c, s, dur);
                 break;
         }
-
         showSkillNotification(s.getName() + " Aktif!");
     }
-
     private void scheduleBuffExpiration(GameCharacter c, Skill s, int durationSec) {
         new Thread(() -> {
             try {
@@ -255,25 +229,11 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
             } catch (InterruptedException ignored) {}
         }).start();
     }
-
-    public void showSkillNotification(String text) {
-        if (view != null) view.showNotification(text);
-    }
-
+    public void showSkillNotification(String text) { if (view != null) view.showNotification(text); }
     @Override
-    public void onMoveUp() {
-        if (player == null || isPaused) return;
-        player.moveUp();
-        sync.syncPlayerMove(player.getLane());
-    }
-
+    public void onMoveUp() { if (player == null || isPaused) return; player.moveUp(); sync.syncPlayerMove(player.getLane()); }
     @Override
-    public void onMoveDown() {
-        if (player == null || isPaused) return;
-        player.moveDown();
-        sync.syncPlayerMove(player.getLane());
-    }
-
+    public void onMoveDown() { if (player == null || isPaused) return; player.moveDown(); sync.syncPlayerMove(player.getLane()); }
     private void performAutoShoot() {
         if (player == null || player.isDead()) return;
         Projectile p = new Projectile(player.getX(), player.getY() + 40, player.getLane(), Constants.PROJECTILE_SPEED, player.getCurrentDamage(), true, player.getProjectileImage());
@@ -281,12 +241,10 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
         AudioPlayer.getInstance().playSFX("shoot.wav");
         sync.syncShoot(player.getLane(), player.getCurrentDamage());
     }
-
     @Override
     public GameState getGameState() { return gameState; }
     @Override
     public List<Projectile> getProjectiles() { return gameState.getProjectiles(); }
-
     @Override
     public void onMessageReceived(String type, String data) {
         switch (type) {
