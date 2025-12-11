@@ -1,5 +1,5 @@
 package view.components;
-
+import util.NetworkManager;
 import view.HomeScreen;
 import util.AssetLoader;
 
@@ -45,6 +45,8 @@ public class ResultDialog extends JDialog {
         JButton backBtn = new JButton("KEMBALI KE MENU UTAMA");
         styleButton(backBtn);
         backBtn.addActionListener(e -> {
+            
+            NetworkManager.getInstance().disconnect();
             // dispose dialog itself
             dispose();
             // dispose owner window safely if present

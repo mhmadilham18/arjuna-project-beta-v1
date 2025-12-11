@@ -21,7 +21,7 @@ public class GameWindow extends JFrame {
     private CardLayout cardLayout;
 
     // Background dummy (ganti nanti)
-    private final Image gameBg = new ImageIcon("src\\assets\\images\\bg_battle.png").getImage();
+    private final Image gameBg = new ImageIcon("src/assets/images/bg_battle.png").getImage();
 
     public GameWindow(String playerName, boolean isServer, String host) {
         setTitle("ARJUNA BATTLE - " + playerName);
@@ -60,15 +60,26 @@ public class GameWindow extends JFrame {
         waitingPanel.setFont(new Font("Serif", Font.BOLD, 40));
         mainContainer.add(waitingPanel, "WAITING");
 
+        // === BG KHUSUS PERTARUNGAN (dummy) ===
+        final Image battleBg = new ImageIcon("src/assets/images/bg_battle.png").getImage();
+
         // === GAME PANEL ===
         JPanel gamePanel = new JPanel(new BorderLayout()) {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
-                // Transparent supaya background tetap keliatan
-                setOpaque(false);
+
+                // Render background pertarungan dulu
+                g.drawImage(battleBg, 0, 0, getWidth(), getHeight(), this);
+
+                // Semi-transparent overlay biar wayang keliatan lebih fokus
+                Graphics2D g2 = (Graphics2D) g;
+                g2.setColor(new Color(0, 0, 0, 50)); // bisa lo atur
+                g2.fillRect(0, 0, getWidth(), getHeight());
             }
         };
+        gamePanel.setOpaque(false);
+
 
         canvas = new GameCanvas(presenter) {
             @Override

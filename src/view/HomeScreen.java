@@ -12,8 +12,8 @@ public class HomeScreen extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        // LOAD BACKGROUND IMAGE
-        Image bg = new ImageIcon("arjuna-project-beta-v1\\src\\assets\\images\\bg_home.png").getImage();
+        // LOAD BACKGROUND IMAGE0
+        Image bg = new ImageIcon("src/assets/images/bg_home.png").getImage();
 
         // Custom panel buat background
         JPanel backgroundPanel = new JPanel() {

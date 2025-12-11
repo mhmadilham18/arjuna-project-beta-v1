@@ -40,9 +40,7 @@ public class WaitingPanel extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
 
-        // === BACKGROUND IMAGE ===
-        // dummy dulu → "background_dummy.jpg"
-        Image bg = AssetLoader.getInstance().getImage("src\\assets\\images\\bg_waiting.png");
+        Image bg = AssetLoader.getInstance().getImage("src/assets/images/bg_waiting.png");
 
         if (bg != null) {
             g.drawImage(bg, 0, 0, getWidth(), getHeight(), null);

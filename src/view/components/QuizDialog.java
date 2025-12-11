@@ -124,15 +124,12 @@ public class QuizDialog extends JDialog {
         return panel;
     }
 
-    /** BACKGROUND PANEL (IMAGE + FALLBACK) ******************************************/
     private class BackgroundPanel extends JPanel {
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
 
-            // Background image from AssetLoader
-            // TEMP: pakai dummy dulu
-            Image bg = AssetLoader.getInstance().getImage("dummy_quiz_bg.jpg");
+            Image bg = AssetLoader.getInstance().getImage("src/assets/images/bg_quiz.jpg");
 
             if (bg != null) {
                 g.drawImage(bg, 0, 0, getWidth(), getHeight(), null);
