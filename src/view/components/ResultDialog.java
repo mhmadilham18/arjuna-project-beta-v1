@@ -47,18 +47,29 @@ public class ResultDialog extends JDialog {
             backBtn.setEnabled(false);
             backBtn.setText("Sedang Keluar...");
 
-            // Thread terpisah untuk memutus koneksi
+            // 1. Jalankan perintah disconnect di Thread terpisah (biarkan dia kerja sendiri)
             new Thread(() -> {
                 NetworkManager.getInstance().disconnect();
-
-                // Update UI setelah putus
-                SwingUtilities.invokeLater(() -> {
-                    dispose();
-                    Window w = getOwner();
-                    if (w != null) w.dispose();
-                    new HomeScreen();
-                });
             }).start();
+
+            // 2. JANGAN MENUNGGU thread di atas selesai.
+            // Gunakan Timer untuk memberi jeda visual sedikit (misal 0.5 detik), lalu paksa pindah.
+            Timer timer = new Timer(500, evt -> {
+                // Tutup Dialog
+                dispose();
+
+                // Tutup GameWindow (Owner)
+                Window w = getOwner();
+                if (w != null) {
+                    w.dispose();
+                }
+
+                // Buka Home Screen Baru
+                new HomeScreen();
+            });
+
+            timer.setRepeats(false); // Jalankan sekali saja
+            timer.start();
         });
 
         gbc.gridy = 2;
