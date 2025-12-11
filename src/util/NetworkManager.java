@@ -100,19 +100,44 @@ public class NetworkManager {
     }
 
     public void disconnect() {
+        System.out.println("Force disconnecting...");
+
+        // 1. Matikan Thread Listener terlebih dahulu
+        if (networkThread != null) {
+            networkThread.stopThread();
+        }
+
+        // 2. TUTUP SOCKET UTAMA DULUAN (Ini kunci agar tidak macet)
+        // Dengan menutup socket, stream input/output akan otomatis error dan berhenti
         try {
-            if (networkThread != null) {
-                networkThread.stopThread();
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
             }
+        } catch (IOException e) {
+            // Abaikan error saat menutup, yang penting perintah tutup jalan
+        }
+
+        // 3. Tutup Server Socket (Agar port 5000 bisa dipakai lagi)
+        try {
+            if (isServer && serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        // 4. Bersihkan Stream (Opsional, karena socket sudah tutup)
+        try {
             if (out != null) out.close();
             if (in != null) in.close();
-            if (socket != null) socket.close();
-            if (serverSocket != null) serverSocket.close();
-
-            System.out.println("Disconnected from network");
         } catch (IOException e) {
-            System.err.println("Error disconnecting: " + e.getMessage());
+            // Abaikan
         }
+
+        // 5. Reset Instance
+        instance = null;
+
+        System.out.println("Disconnected completely.");
     }
 
     public boolean isServer() {

@@ -50,27 +50,25 @@ public class ResultDialog extends JDialog {
         styleButton(backBtn);
 
         backBtn.addActionListener(e -> {
-            // 1. Ubah tombol jadi disabled biar user tau lagi proses
             backBtn.setEnabled(false);
             backBtn.setText("Sedang Keluar...");
 
-            // 2. Jalankan Disconnect di Thread BARU (Background)
+            // Jalankan Thread untuk bersih-bersih jaringan
             new Thread(() -> {
-                // Proses berat ada di sini, UI tidak akan macet
+                // Panggil disconnect (sekarang sudah cepat karena kode di atas)
                 NetworkManager.getInstance().disconnect();
-
-                // 3. Setelah selesai, update UI kembali di Thread Utama
-                SwingUtilities.invokeLater(() -> {
-                    dispose(); // Tutup dialog
-
-                    Window w = getOwner();
-                    if (w != null) {
-                        w.dispose(); // Tutup GameWindow
-                    }
-
-                    new HomeScreen(); // Buka Home
-                });
             }).start();
+
+            // LANGSUNG PINDAH LAYAR (Jangan menunggu thread di atas selesai)
+            // Beri jeda sangat singkat (200ms) agar terasa natural, lalu tutup
+            Timer delay = new Timer(200, evt -> {
+                dispose();
+                Window w = getOwner();
+                if (w != null) w.dispose();
+                new HomeScreen();
+            });
+            delay.setRepeats(false);
+            delay.start();
         });
 
         gbc.gridy = 2;
