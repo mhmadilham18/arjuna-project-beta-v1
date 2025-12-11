@@ -2,9 +2,8 @@ package util;
 
 import java.io.*;
 import java.net.*;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList; // Gunakan ini agar aman thread
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class NetworkManager {
     private static NetworkManager instance;
@@ -15,7 +14,7 @@ public class NetworkManager {
     private PrintWriter out;
     private BufferedReader in;
 
-    // FIX: Gunakan CopyOnWriteArrayList untuk mencegah crash saat loop listener
+    // Gunakan CopyOnWriteArrayList agar aman thread (Fix ConcurrentModificationException)
     private final List<NetworkMessageListener> listeners;
     private NetworkThread networkThread;
 
@@ -33,14 +32,11 @@ public class NetworkManager {
     public void startServer(int port) throws IOException {
         isServer = true;
 
-        // --- PERBAIKAN BUG PORT BUSY ---
-        // 1. Buat socket tanpa port dulu
+        // --- FIX PORT BUSY ---
         serverSocket = new ServerSocket();
-        // 2. Set Reuse Address SEBELUM bind
-        serverSocket.setReuseAddress(true);
-        // 3. Baru bind ke port
+        serverSocket.setReuseAddress(true); // Agar port bisa langsung dipakai ulang
         serverSocket.bind(new InetSocketAddress(port));
-        // -------------------------------
+        // ---------------------
 
         System.out.println("Server started on port " + port);
 
@@ -55,7 +51,6 @@ public class NetworkManager {
 
                 notifyListeners(Constants.MSG_PLAYER_JOINED, "Client connected");
             } catch (IOException e) {
-                // Abaikan error jika socket ditutup manual
                 if (serverSocket != null && !serverSocket.isClosed()) {
                     System.err.println("Error accepting client: " + e.getMessage());
                 }
@@ -78,6 +73,9 @@ public class NetworkManager {
     }
 
     private void startNetworkThread() {
+        if (networkThread != null && networkThread.isAlive()) {
+            networkThread.stopThread();
+        }
         networkThread = new NetworkThread(in, this);
         networkThread.start();
     }
@@ -100,7 +98,10 @@ public class NetworkManager {
     }
 
     public void addListener(NetworkMessageListener listener) {
-        listeners.add(listener);
+        // Hindari duplikasi listener
+        if (!listeners.contains(listener)) {
+            listeners.add(listener);
+        }
     }
 
     public void removeListener(NetworkMessageListener listener) {
@@ -113,8 +114,9 @@ public class NetworkManager {
         }
     }
 
-    public void disconnect() {
-        System.out.println("Force disconnecting...");
+    // --- FIX STUCK SAAT KELUAR ---
+    public void hardReset() {
+        System.out.println("Hard Resetting Network...");
 
         if (networkThread != null) networkThread.stopThread();
 
@@ -131,13 +133,9 @@ public class NetworkManager {
             if (in != null) in.close();
         } catch (IOException e) {}
 
-        // --- PERBAIKAN BUG STUCK SAAT RESTART ---
-        // Hapus semua listener (Presenter Lama) agar Presenter Baru bisa masuk
+        // --- PENTING: Hapus listener lama agar tidak dobel/nyangkut
         listeners.clear();
 
-        // Jangan null-kan instance agar Singleton tetap hidup tapi bersih
-        // instance = null; // Hapus baris ini jika ingin instance reusable, atau biarkan null tapi pastikan listeners clear.
-        // Sebaiknya reset state variabel saja:
         isServer = false;
         socket = null;
         serverSocket = null;
@@ -145,7 +143,12 @@ public class NetworkManager {
         in = null;
         networkThread = null;
 
-        System.out.println("Disconnected and Listeners Cleared.");
+        System.out.println("Network Reset Complete.");
+    }
+
+    // Alias untuk backward compatibility
+    public void disconnect() {
+        hardReset();
     }
 
     public boolean isServer() { return isServer; }
