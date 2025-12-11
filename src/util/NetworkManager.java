@@ -30,6 +30,8 @@ public class NetworkManager {
     public void startServer(int port) throws IOException {
         isServer = true;
         serverSocket = new ServerSocket(port);
+        serverSocket.setReuseAddress(true); // KUNCI UTAMA: Agar port bisa langsung dipakai ulang
+        serverSocket.bind(new InetSocketAddress(port));
         System.out.println("Server started on port " + port);
 
         // Start thread untuk menerima koneksi
