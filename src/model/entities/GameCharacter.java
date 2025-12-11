@@ -21,13 +21,11 @@ public class GameCharacter {
     protected int hp;
     protected int sukma;
     protected int baseAttack = 10;
-//    protected int attackSpeedMillis = 333;
     protected int lane = 4;
 
     protected CharacterState state = CharacterState.NORMAL;
     protected long lastSukmaRecharge;
 
-//    protected long lastAttackTime;
 
     protected List<Skill> skills;
 

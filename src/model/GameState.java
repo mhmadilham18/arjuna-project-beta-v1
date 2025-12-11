@@ -38,17 +38,15 @@ public class GameState {
         for (Projectile p : projectiles) {
             p.update();
 
-            // Cek Tabrakan: Peluru Musuh Kena Player Kita
             if (player != null && !p.isFromPlayer() && p.collidesWith(player)) {
                 player.takeDamage(p.getDamage());
                 toRemove.add(p);
 
-                // FIX: Mainkan suara sakit disini!
-                System.out.println("Player Hit! Playing sound..."); // Debug
+                System.out.println("Player Hit! Playing sound...");
                 AudioPlayer.getInstance().playRandomHitSound();
                 StateSynchronizer.getInstance().syncMyHp(player.getHp());
             }
-            // Cek Tabrakan: Peluru Kita Kena Musuh
+
             else if (enemy != null && p.isFromPlayer() && p.collidesWith(enemy)) {
                 toRemove.add(p);
             }

@@ -77,12 +77,10 @@ public class NetworkManager {
 
     public void handleIncomingMessage(String message) {
         if (message == null || message.isEmpty()) return;
-
         String[] parts = message.split("\\" + Constants.MESSAGE_DELIMITER, 2);
         if (parts.length >= 1) {
             String messageType = parts[0];
             String data = parts.length > 1 ? parts[1] : "";
-
             notifyListeners(messageType, data);
         }
     }
