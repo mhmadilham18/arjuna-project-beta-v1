@@ -41,7 +41,10 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
         try {
             net.startServer(port);
             setupCharacters(playerName, true);
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+            handleConnectionError("Gagal membuat Server (Port sibuk).\nCoba restart game atau tunggu sebentar.");
+        }
     }
 
     @Override
@@ -49,7 +52,22 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
         try {
             net.connectToServer(host, port);
             setupCharacters(playerName, false);
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+            handleConnectionError("Gagal terhubung ke Server.\nCek IP Address atau Firewall.");
+        }
+    }
+
+    private void handleConnectionError(String msg) {
+        SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(null, msg, "Connection Error", JOptionPane.ERROR_MESSAGE);
+            // Tutup window game saat ini
+            if (view instanceof javax.swing.JFrame) {
+                ((javax.swing.JFrame) view).dispose();
+            }
+            // Kembali ke Home
+            new view.HomeScreen();
+        });
     }
 
     private void setupCharacters(String playerName, boolean isServer) {
