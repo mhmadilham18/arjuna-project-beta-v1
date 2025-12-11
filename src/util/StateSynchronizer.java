@@ -167,7 +167,9 @@ public class StateSynchronizer {
             try { gameState.getPlayer().takeDamage(Integer.parseInt(data)); } catch (Exception ignored) {}
         }
     }
+
     public void syncGameOver(String winner) { net.sendMessage(Constants.MSG_GAME_OVER, winner); }
+
     public void handleGameOver(String winner) {
         synchronized (lock) {
             if (gameState != null) {

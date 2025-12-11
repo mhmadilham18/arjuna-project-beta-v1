@@ -77,12 +77,10 @@ public class NetworkManager {
 
     public void handleIncomingMessage(String message) {
         if (message == null || message.isEmpty()) return;
-
         String[] parts = message.split("\\" + Constants.MESSAGE_DELIMITER, 2);
         if (parts.length >= 1) {
             String messageType = parts[0];
             String data = parts.length > 1 ? parts[1] : "";
-
             notifyListeners(messageType, data);
         }
     }
@@ -102,28 +100,44 @@ public class NetworkManager {
     }
 
     public void disconnect() {
+        System.out.println("Force disconnecting...");
+
+        // 1. Matikan Thread Listener terlebih dahulu
+        if (networkThread != null) {
+            networkThread.stopThread();
+        }
+
+        // 2. TUTUP SOCKET UTAMA DULUAN (Ini kunci agar tidak macet)
+        // Dengan menutup socket, stream input/output akan otomatis error dan berhenti
         try {
-            if (networkThread != null) {
-                networkThread.stopThread();
-            }
-            if (out != null) out.close();
-            if (in != null) in.close();
-
-
-            if (socket != null && !socket.isClosed()){ 
+            if (socket != null && !socket.isClosed()) {
                 socket.close();
             }
-            
+        } catch (IOException e) {
+            // Abaikan error saat menutup, yang penting perintah tutup jalan
+        }
+
+        // 3. Tutup Server Socket (Agar port 5000 bisa dipakai lagi)
+        try {
             if (isServer && serverSocket != null && !serverSocket.isClosed()) {
                 serverSocket.close();
             }
-
-            instance = null;
-
-            System.out.println("Disconnected from network");
         } catch (IOException e) {
-            System.err.println("Error disconnecting: " + e.getMessage());
+            e.printStackTrace();
         }
+
+        // 4. Bersihkan Stream (Opsional, karena socket sudah tutup)
+        try {
+            if (out != null) out.close();
+            if (in != null) in.close();
+        } catch (IOException e) {
+            // Abaikan
+        }
+
+        // 5. Reset Instance
+        instance = null;
+
+        System.out.println("Disconnected completely.");
     }
 
     public boolean isServer() {

@@ -1,4 +1,5 @@
 package view.components;
+
 import util.NetworkManager;
 import view.HomeScreen;
 import util.AssetLoader;
@@ -17,6 +18,9 @@ public class ResultDialog extends JDialog {
         setLocationRelativeTo(owner);
         setResizable(false);
 
+        // PENTING: Set default close operation agar X tidak bikin error
+        setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
+
         initUI(winner, isWinner);
 
         setVisible(true);
@@ -27,9 +31,9 @@ public class ResultDialog extends JDialog {
         gbc.insets = new Insets(15, 10, 15, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // --- TITLE: WIN / LOSE ---
+        // --- TITLE ---
         JLabel title = new JLabel(isWinner ? "KAMU MENANG!" : "KAMU KALAH!", SwingConstants.CENTER);
-        title.setFont(new Font("Cinzel", Font.BOLD, 36));
+        title.setFont(new Font("Serif", Font.BOLD, 36));
         title.setForeground(isWinner ? new Color(255, 215, 0) : new Color(255, 100, 100));
         gbc.gridy = 0;
         add(title, gbc);
@@ -41,21 +45,30 @@ public class ResultDialog extends JDialog {
         gbc.gridy = 1;
         add(winnerLabel, gbc);
 
-        // --- BUTTON: BACK TO HOME ---
+        // --- BUTTON ---
         JButton backBtn = new JButton("KEMBALI KE MENU UTAMA");
         styleButton(backBtn);
+
         backBtn.addActionListener(e -> {
-            
-            NetworkManager.getInstance().disconnect();
-            // dispose dialog itself
-            dispose();
-            // dispose owner window safely if present
-            Window w = getOwner();
-            if (w != null) {
-                w.dispose();
-            }
-            // open home screen
-            new HomeScreen();
+            backBtn.setEnabled(false);
+            backBtn.setText("Sedang Keluar...");
+
+            // Jalankan Thread untuk bersih-bersih jaringan
+            new Thread(() -> {
+                // Panggil disconnect (sekarang sudah cepat karena kode di atas)
+                NetworkManager.getInstance().disconnect();
+            }).start();
+
+            // LANGSUNG PINDAH LAYAR (Jangan menunggu thread di atas selesai)
+            // Beri jeda sangat singkat (200ms) agar terasa natural, lalu tutup
+            Timer delay = new Timer(200, evt -> {
+                dispose();
+                Window w = getOwner();
+                if (w != null) w.dispose();
+                new HomeScreen();
+            });
+            delay.setRepeats(false);
+            delay.start();
         });
 
         gbc.gridy = 2;
@@ -77,17 +90,13 @@ public class ResultDialog extends JDialog {
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
-
-            Image bg = AssetLoader.getInstance().getQuizBackground(); // pakai background quiz biar satu tema
+            Image bg = AssetLoader.getInstance().getQuizBackground();
             if (bg != null) {
                 g.drawImage(bg, 0, 0, getWidth(), getHeight(), null);
             } else {
-                // fallback: warna merah gelap ritual
                 g.setColor(new Color(40, 0, 0));
                 g.fillRect(0, 0, getWidth(), getHeight());
             }
-
-            // overlay mist effect
             g.setColor(new Color(0, 0, 0, 120));
             g.fillRect(0, 0, getWidth(), getHeight());
         }

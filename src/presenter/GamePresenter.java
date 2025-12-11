@@ -89,7 +89,8 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
     }
 
     private void startGameLoops() {
-        // 1. Loop Utama (Gerakan & Logika)
+
+
         gameLoopTimer = new Timer(16, e -> {
             if (isPaused) return;
             if (gameState.getState() == Constants.STATE_GAME_OVER) { stopGame(); return; }
@@ -103,7 +104,9 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
         });
         gameLoopTimer.start();
 
-        // 2. Loop Tembakan Otomatis
+
+
+
         autoShootTimer = new Timer(333, e -> {
             if (isPaused) return;
             if (gameState.getState() == Constants.STATE_PLAYING) performAutoShoot();
