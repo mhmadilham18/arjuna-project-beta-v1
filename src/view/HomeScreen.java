@@ -10,7 +10,17 @@ public class HomeScreen extends JFrame {
         setTitle("ARJUNA BATTLE - HOME");
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
+
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent windowEvent) {
+                util.NetworkManager.getInstance().disconnect(); // Lepas Port
+                System.exit(0); // Matikan JVM total
+            }
+        });
         setLocationRelativeTo(null);
+
+
 
         // LOAD BACKGROUND IMAGE0
         Image bg = new ImageIcon("src/assets/images/bg_home.png").getImage();
@@ -114,13 +124,45 @@ public class HomeScreen extends JFrame {
         joinBtn.addActionListener(e -> {
             String name = nameField.getText().trim();
             String ip = ipField.getText().trim();
+
             if (name.isEmpty() || ip.isEmpty()) {
                 JOptionPane.showMessageDialog(null, "Nama & IP wajib diisi!");
                 return;
             }
-            GameWindow gw = new GameWindow(name, false, ip);
-            gw.showWaiting("Menghubungkan ke server...");
-            dispose();
+
+            // --- PERBAIKAN: GUNAKAN THREAD AGAR TIDAK FREEZE ---
+            new Thread(() -> {
+                // 1. Matikan tombol biar gak diklik dobel & Ubah teks
+                SwingUtilities.invokeLater(() -> {
+                    joinBtn.setEnabled(false);
+                    joinBtn.setText("Connecting...");
+                });
+
+                try {
+                    // 2. Proses Berat (Koneksi) dilakukan disini
+                    // GameWindow akan mencoba connect di constructor-nya
+                    GameWindow gw = new GameWindow(name, false, ip);
+
+                    // 3. Jika Sukses, Pindah Layar (Update UI wajib di InvokeLater)
+                    SwingUtilities.invokeLater(() -> {
+                        gw.showWaiting("Menghubungkan ke server...");
+                        dispose(); // Tutup Home
+                    });
+
+                } catch (Exception ex) {
+                    // 4. Jika Gagal, Tampilkan Error & Nyalakan Tombol Lagi
+                    ex.printStackTrace(); // Cek error di konsol
+                    SwingUtilities.invokeLater(() -> {
+                        JOptionPane.showMessageDialog(null,
+                                "Gagal terhubung ke Server!\nCek IP atau Firewall.\nError: " + ex.getMessage(),
+                                "Koneksi Gagal",
+                                JOptionPane.ERROR_MESSAGE);
+
+                        joinBtn.setEnabled(true);
+                        joinBtn.setText("JOIN GAME (Client)");
+                    });
+                }
+            }).start();
         });
 
         setVisible(true);

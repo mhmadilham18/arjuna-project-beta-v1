@@ -27,6 +27,22 @@ public class GameWindow extends JFrame {
         setTitle("ARJUNA BATTLE - " + playerName);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
+
+        setDefaultCloseOperation(DO_NOTHING_ON_CLOSE); // Jangan langsung exit
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent windowEvent) {
+                // Konfirmasi keluar (opsional)
+                int result = JOptionPane.showConfirmDialog(GameWindow.this,
+                        "Yakin ingin keluar dari pertempuran?", "Keluar",
+                        JOptionPane.YES_NO_OPTION);
+
+                if (result == JOptionPane.YES_OPTION) {
+                    util.NetworkManager.getInstance().disconnect();
+                    System.exit(0); // Kill Process
+                }
+            }
+        });
         setLocationRelativeTo(null);
 
         cardLayout = new CardLayout();
