@@ -1,27 +1,93 @@
 package view.components;
 
 import view.HomeScreen;
+import util.AssetLoader;
+
 import javax.swing.*;
 import java.awt.*;
 
 public class ResultDialog extends JDialog {
-    public ResultDialog(Frame owner, String winner, boolean isWinner) {
-        super(owner, "Hasil Pertandingan", true);
-        JPanel p = new JPanel(new GridLayout(3, 1));
-        p.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        JLabel l1 = new JLabel(isWinner ? "MENANG!" : "KALAH!", SwingConstants.CENTER);
-        l1.setFont(new Font("Dialog", Font.BOLD, 30));
-        l1.setForeground(isWinner ? Color.GREEN : Color.RED);
-        JLabel l2 = new JLabel("Pemenang: " + winner, SwingConstants.CENTER);
-        l2.setFont(new Font("Dialog", Font.PLAIN, 18));
-        JButton ok = new JButton("Kembali ke Menu Utama");
-        ok.setFont(new Font("Dialog", Font.BOLD, 16));
-        ok.addActionListener(e -> {
+
+    public ResultDialog(Window owner, String winner, boolean isWinner) {
+        super(owner, "Hasil Pertarungan", ModalityType.APPLICATION_MODAL);
+
+        setContentPane(new BackgroundPanel());
+        setLayout(new GridBagLayout());
+        setSize(550, 350);
+        setLocationRelativeTo(owner);
+        setResizable(false);
+
+        initUI(winner, isWinner);
+
+        setVisible(true);
+    }
+
+    private void initUI(String winner, boolean isWinner) {
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(15, 10, 15, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // --- TITLE: WIN / LOSE ---
+        JLabel title = new JLabel(isWinner ? "KAMU MENANG!" : "KAMU KALAH!", SwingConstants.CENTER);
+        title.setFont(new Font("Cinzel", Font.BOLD, 36));
+        title.setForeground(isWinner ? new Color(255, 215, 0) : new Color(255, 100, 100));
+        gbc.gridy = 0;
+        add(title, gbc);
+
+        // --- WINNER INFO ---
+        JLabel winnerLabel = new JLabel("Pemenang: " + winner, SwingConstants.CENTER);
+        winnerLabel.setFont(new Font("Serif", Font.PLAIN, 22));
+        winnerLabel.setForeground(new Color(230, 230, 230));
+        gbc.gridy = 1;
+        add(winnerLabel, gbc);
+
+        // --- BUTTON: BACK TO HOME ---
+        JButton backBtn = new JButton("KEMBALI KE MENU UTAMA");
+        styleButton(backBtn);
+        backBtn.addActionListener(e -> {
+            // dispose dialog itself
             dispose();
-            owner.dispose();
+            // dispose owner window safely if present
+            Window w = getOwner();
+            if (w != null) {
+                w.dispose();
+            }
+            // open home screen
             new HomeScreen();
         });
-        p.add(l1); p.add(l2); p.add(ok);
-        add(p); setSize(400, 250); setLocationRelativeTo(owner); setVisible(true);
+
+        gbc.gridy = 2;
+        add(backBtn, gbc);
+    }
+
+    private void styleButton(JButton b) {
+        b.setFont(new Font("Dialog", Font.BOLD, 18));
+        b.setFocusPainted(false);
+        b.setBackground(new Color(60, 20, 20));
+        b.setForeground(new Color(255, 215, 0));
+        b.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(180, 60, 60), 2),
+                BorderFactory.createEmptyBorder(10, 20, 10, 20)
+        ));
+    }
+
+    private class BackgroundPanel extends JPanel {
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+
+            Image bg = AssetLoader.getInstance().getQuizBackground(); // pakai background quiz biar satu tema
+            if (bg != null) {
+                g.drawImage(bg, 0, 0, getWidth(), getHeight(), null);
+            } else {
+                // fallback: warna merah gelap ritual
+                g.setColor(new Color(40, 0, 0));
+                g.fillRect(0, 0, getWidth(), getHeight());
+            }
+
+            // overlay mist effect
+            g.setColor(new Color(0, 0, 0, 120));
+            g.fillRect(0, 0, getWidth(), getHeight());
+        }
     }
 }

@@ -20,27 +20,87 @@ public class GameWindow extends JFrame {
     private JPanel mainContainer;
     private CardLayout cardLayout;
 
+    // Background dummy (ganti nanti)
+    private final Image gameBg = new ImageIcon("src\\assets\\images\\bg_battle.png").getImage();
+
     public GameWindow(String playerName, boolean isServer, String host) {
-        setTitle("Arjuna Battle - " + playerName);
-
-        // UBAH DISINI: Maximize Window
+        setTitle("ARJUNA BATTLE - " + playerName);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
-        setUndecorated(false); // Set true jika ingin hilang bar atas (Full Screen total)
-
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
         cardLayout = new CardLayout();
-        mainContainer = new JPanel(cardLayout);
+
+        // === MAIN CONTAINER DGN CUSTOM BACKGROUND ===
+        mainContainer = new JPanel(cardLayout) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                g.drawImage(gameBg, 0, 0, getWidth(), getHeight(), this);
+            }
+        };
+        mainContainer.setOpaque(false);
+        mainContainer.setLayout(cardLayout);
 
         presenter = new GamePresenter(new viewAdapter());
 
-        waitingPanel = new WaitingPanel("Menunggu lawan...");
+        // === WAITING PANEL (tema gelap + gold) ===
+        waitingPanel = new WaitingPanel("Menunggu lawan...") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+
+                // Layer hitam transparan biar text kebaca
+                Graphics2D g2 = (Graphics2D) g;
+                g2.setColor(new Color(0, 0, 0, 160));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+            }
+        };
+        waitingPanel.setForeground(new Color(255, 215, 0)); // gold
+        waitingPanel.setFont(new Font("Serif", Font.BOLD, 40));
         mainContainer.add(waitingPanel, "WAITING");
 
-        JPanel gamePanel = new JPanel(new BorderLayout());
-        canvas = new GameCanvas(presenter);
-        hud = new HUDPanel(presenter);
+        // === GAME PANEL ===
+        JPanel gamePanel = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                // Transparent supaya background tetap keliatan
+                setOpaque(false);
+            }
+        };
+
+        canvas = new GameCanvas(presenter) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+
+                // Semi-transparent layer buat ngeblend dengan background batik
+                Graphics2D g2 = (Graphics2D) g;
+                g2.setColor(new Color(0, 0, 0, 70));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+            }
+        };
+
+        // === HUD PANEL THEME WAYANG ===
+        hud = new HUDPanel(presenter) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g;
+
+                // Hitam transparan + gold border
+                g2.setColor(new Color(0, 0, 0, 160));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+
+                g2.setColor(new Color(255, 215, 0));
+                g2.setStroke(new BasicStroke(3));
+                g2.drawRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+
+                super.paintComponent(g);
+            }
+        };
+        hud.setOpaque(false);
+
         gamePanel.add(canvas, BorderLayout.CENTER);
         gamePanel.add(hud, BorderLayout.SOUTH);
         mainContainer.add(gamePanel, "GAME");
@@ -60,6 +120,7 @@ public class GameWindow extends JFrame {
     }
 
     public void showWaiting(String message) {
+        waitingPanel.setToolTipText(message);
         cardLayout.show(mainContainer, "WAITING");
     }
 
@@ -71,22 +132,36 @@ public class GameWindow extends JFrame {
     private class viewAdapter implements presenter.GameContract.View {
         @Override
         public void onStateUpdated(model.GameState state) {}
+
         @Override
         public void showQuiz(GameCharacter self, Skill skill) {
             SwingUtilities.invokeLater(() -> new QuizDialog(GameWindow.this, presenter, self, skill));
         }
+
         @Override
         public void showResult(String winner, boolean isWinner) {
             SwingUtilities.invokeLater(() -> new ResultDialog(GameWindow.this, winner, isWinner));
         }
+
         @Override
         public void repaintGame() {
             canvas.repaint();
             hud.repaint();
         }
+
         @Override
-        public void startGameDisplay() { GameWindow.this.startGame(); }
+        public void startGameDisplay() {
+            GameWindow.this.startGame();
+        }
+
         @Override
-        public void showNotification(String text) { canvas.setNotification(text); }
+        public void showNotification(String text) {
+            canvas.setNotification(text);
+        }
     }
+
+    
+    
 }
+
+
