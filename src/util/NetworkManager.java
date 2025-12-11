@@ -29,9 +29,18 @@ public class NetworkManager {
 
     public void startServer(int port) throws IOException {
         isServer = true;
-        serverSocket = new ServerSocket(port);
-        serverSocket.setReuseAddress(true); // KUNCI UTAMA: Agar port bisa langsung dipakai ulang
+
+        // --- PERBAIKAN LOGIKA BIND ---
+        // 1. Buat Socket kosong (JANGAN masukkan port di dalam kurung ini)
+        serverSocket = new ServerSocket();
+
+        // 2. Aktifkan fitur pakai ulang port (PENTING dilakukan sebelum bind)
+        serverSocket.setReuseAddress(true);
+
+        // 3. Baru sekarang kita bind (ikat) ke port yang diinginkan
         serverSocket.bind(new InetSocketAddress(port));
+        // -----------------------------
+
         System.out.println("Server started on port " + port);
 
         // Start thread untuk menerima koneksi
@@ -46,7 +55,10 @@ public class NetworkManager {
 
                 notifyListeners(Constants.MSG_PLAYER_JOINED, "Client connected");
             } catch (IOException e) {
-                System.err.println("Error accepting client: " + e.getMessage());
+                // Abaikan error jika serverSocket ditutup manual
+                if (!serverSocket.isClosed()) {
+                    System.err.println("Error accepting client: " + e.getMessage());
+                }
             }
         }).start();
     }
