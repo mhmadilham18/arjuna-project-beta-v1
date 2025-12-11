@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList; // Gunakan ini agar aman thread
 
 public class NetworkManager {
     private static NetworkManager instance;
@@ -13,11 +14,13 @@ public class NetworkManager {
     private Socket socket;
     private PrintWriter out;
     private BufferedReader in;
-    private List<NetworkMessageListener> listeners;
+
+    // FIX: Gunakan CopyOnWriteArrayList untuk mencegah crash saat loop listener
+    private final List<NetworkMessageListener> listeners;
     private NetworkThread networkThread;
 
     private NetworkManager() {
-        listeners = new ArrayList<>();
+        listeners = new CopyOnWriteArrayList<>();
     }
 
     public static NetworkManager getInstance() {
@@ -30,20 +33,17 @@ public class NetworkManager {
     public void startServer(int port) throws IOException {
         isServer = true;
 
-        // --- PERBAIKAN LOGIKA BIND ---
-        // 1. Buat Socket kosong (JANGAN masukkan port di dalam kurung ini)
+        // --- PERBAIKAN BUG PORT BUSY ---
+        // 1. Buat socket tanpa port dulu
         serverSocket = new ServerSocket();
-
-        // 2. Aktifkan fitur pakai ulang port (PENTING dilakukan sebelum bind)
+        // 2. Set Reuse Address SEBELUM bind
         serverSocket.setReuseAddress(true);
-
-        // 3. Baru sekarang kita bind (ikat) ke port yang diinginkan
+        // 3. Baru bind ke port
         serverSocket.bind(new InetSocketAddress(port));
-        // -----------------------------
+        // -------------------------------
 
         System.out.println("Server started on port " + port);
 
-        // Start thread untuk menerima koneksi
         new Thread(() -> {
             try {
                 System.out.println("Waiting for client connection...");
@@ -55,8 +55,8 @@ public class NetworkManager {
 
                 notifyListeners(Constants.MSG_PLAYER_JOINED, "Client connected");
             } catch (IOException e) {
-                // Abaikan error jika serverSocket ditutup manual
-                if (!serverSocket.isClosed()) {
+                // Abaikan error jika socket ditutup manual
+                if (serverSocket != null && !serverSocket.isClosed()) {
                     System.err.println("Error accepting client: " + e.getMessage());
                 }
             }
@@ -116,51 +116,40 @@ public class NetworkManager {
     public void disconnect() {
         System.out.println("Force disconnecting...");
 
-        // 1. Matikan Thread Listener terlebih dahulu
-        if (networkThread != null) {
-            networkThread.stopThread();
-        }
+        if (networkThread != null) networkThread.stopThread();
 
-        // 2. TUTUP SOCKET UTAMA DULUAN (Ini kunci agar tidak macet)
-        // Dengan menutup socket, stream input/output akan otomatis error dan berhenti
         try {
-            if (socket != null && !socket.isClosed()) {
-                socket.close();
-            }
-        } catch (IOException e) {
-            // Abaikan error saat menutup, yang penting perintah tutup jalan
-        }
+            if (socket != null && !socket.isClosed()) socket.close();
+        } catch (IOException e) {}
 
-        // 3. Tutup Server Socket (Agar port 5000 bisa dipakai lagi)
         try {
-            if (isServer && serverSocket != null && !serverSocket.isClosed()) {
-                serverSocket.close();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+            if (isServer && serverSocket != null && !serverSocket.isClosed()) serverSocket.close();
+        } catch (IOException e) {}
 
-        // 4. Bersihkan Stream (Opsional, karena socket sudah tutup)
         try {
             if (out != null) out.close();
             if (in != null) in.close();
-        } catch (IOException e) {
-            // Abaikan
-        }
+        } catch (IOException e) {}
 
-        // 5. Reset Instance
-        instance = null;
+        // --- PERBAIKAN BUG STUCK SAAT RESTART ---
+        // Hapus semua listener (Presenter Lama) agar Presenter Baru bisa masuk
+        listeners.clear();
 
-        System.out.println("Disconnected completely.");
+        // Jangan null-kan instance agar Singleton tetap hidup tapi bersih
+        // instance = null; // Hapus baris ini jika ingin instance reusable, atau biarkan null tapi pastikan listeners clear.
+        // Sebaiknya reset state variabel saja:
+        isServer = false;
+        socket = null;
+        serverSocket = null;
+        out = null;
+        in = null;
+        networkThread = null;
+
+        System.out.println("Disconnected and Listeners Cleared.");
     }
 
-    public boolean isServer() {
-        return isServer;
-    }
-
-    public boolean isConnected() {
-        return socket != null && socket.isConnected() && !socket.isClosed();
-    }
+    public boolean isServer() { return isServer; }
+    public boolean isConnected() { return socket != null && socket.isConnected() && !socket.isClosed(); }
 
     public interface NetworkMessageListener {
         void onMessageReceived(String messageType, String data);

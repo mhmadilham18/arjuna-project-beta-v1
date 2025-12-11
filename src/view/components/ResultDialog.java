@@ -17,12 +17,9 @@ public class ResultDialog extends JDialog {
         setSize(550, 350);
         setLocationRelativeTo(owner);
         setResizable(false);
-
-        // PENTING: Set default close operation agar X tidak bikin error
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
 
         initUI(winner, isWinner);
-
         setVisible(true);
     }
 
@@ -31,21 +28,18 @@ public class ResultDialog extends JDialog {
         gbc.insets = new Insets(15, 10, 15, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // --- TITLE ---
         JLabel title = new JLabel(isWinner ? "KAMU MENANG!" : "KAMU KALAH!", SwingConstants.CENTER);
         title.setFont(new Font("Serif", Font.BOLD, 36));
         title.setForeground(isWinner ? new Color(255, 215, 0) : new Color(255, 100, 100));
         gbc.gridy = 0;
         add(title, gbc);
 
-        // --- WINNER INFO ---
         JLabel winnerLabel = new JLabel("Pemenang: " + winner, SwingConstants.CENTER);
         winnerLabel.setFont(new Font("Serif", Font.PLAIN, 22));
         winnerLabel.setForeground(new Color(230, 230, 230));
         gbc.gridy = 1;
         add(winnerLabel, gbc);
 
-        // --- BUTTON ---
         JButton backBtn = new JButton("KEMBALI KE MENU UTAMA");
         styleButton(backBtn);
 
@@ -53,22 +47,18 @@ public class ResultDialog extends JDialog {
             backBtn.setEnabled(false);
             backBtn.setText("Sedang Keluar...");
 
-            // Jalankan Thread untuk bersih-bersih jaringan
+            // Thread terpisah untuk memutus koneksi
             new Thread(() -> {
-                // Panggil disconnect (sekarang sudah cepat karena kode di atas)
                 NetworkManager.getInstance().disconnect();
-            }).start();
 
-            // LANGSUNG PINDAH LAYAR (Jangan menunggu thread di atas selesai)
-            // Beri jeda sangat singkat (200ms) agar terasa natural, lalu tutup
-            Timer delay = new Timer(200, evt -> {
-                dispose();
-                Window w = getOwner();
-                if (w != null) w.dispose();
-                new HomeScreen();
-            });
-            delay.setRepeats(false);
-            delay.start();
+                // Update UI setelah putus
+                SwingUtilities.invokeLater(() -> {
+                    dispose();
+                    Window w = getOwner();
+                    if (w != null) w.dispose();
+                    new HomeScreen();
+                });
+            }).start();
         });
 
         gbc.gridy = 2;
