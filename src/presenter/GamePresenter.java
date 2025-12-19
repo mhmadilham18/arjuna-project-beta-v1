@@ -75,7 +75,7 @@ public class GamePresenter implements GameContract.Presenter, NetworkManager.Net
     }
 
     private void setupCharacters(String playerName, boolean isServer) {
-        // ... (Kode setup karakter sama persis, copy paste saja isinya) ...
+         // ... (Kode setup karakter sama persis, copy paste saja isinya) ...
         CharacterType myChar = isServer ? CharacterType.CAKIL : CharacterType.PATIH_SABRENG;
         CharacterType enemyChar = isServer ? CharacterType.PATIH_SABRENG : CharacterType.CAKIL;
 
