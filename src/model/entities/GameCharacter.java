@@ -112,7 +112,7 @@ public class GameCharacter {
     // --- Getters & Setters ---
     public CharacterType getType() { return type; }
     public boolean isPlayer() { return isPlayer; }
-    public String getPlayerName() { return playerName; } // Added
+    public String getPlayerName() { return playerName; } 
     public int getHp() { return hp; }
     public int getSukma() { return sukma; }
     public int getLane() { return lane; }

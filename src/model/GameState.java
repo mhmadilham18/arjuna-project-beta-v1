@@ -3,7 +3,7 @@ package model;
 import model.entities.Enemy;
 import model.entities.Player;
 import model.entities.Projectile;
-import util.AudioPlayer; // FIX: Pastikan ini di-import
+import util.AudioPlayer;
 import util.Constants;
 import util.StateSynchronizer;
 

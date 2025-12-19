@@ -8,7 +8,7 @@ import util.Constants;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.geom.AffineTransform; // Import ini
+import java.awt.geom.AffineTransform; 
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 
@@ -55,11 +55,11 @@ public class GameCanvas extends JPanel implements KeyListener {
 
         // --- LOGIKA ZOOM/SCALING AGAR FULL SCREEN ---
         Graphics2D g2 = (Graphics2D) g;
-        AffineTransform oldTransform = g2.getTransform(); // Simpan settingan lama
+        AffineTransform oldTransform = g2.getTransform(); 
 
         double scaleX = (double) getWidth() / Constants.SCREEN_WIDTH;
         double scaleY = (double) getHeight() / Constants.SCREEN_HEIGHT;
-        g2.scale(scaleX, scaleY); // Stretch gambar
+        g2.scale(scaleX, scaleY); 
         // ---------------------------------------------
 
         GameState s = presenter.getGameState();
